@@ -7,7 +7,6 @@ import Link from 'next/link';
 import AuthHeader from '../components/AuthHeader';
 import dynamic from 'next/dynamic';
 
-// THE FIX: This safely imports the chart and tells Next.js NOT to crash on the server
 const ProgressionChart = dynamic(() => import('../components/ProgressionChart'), { ssr: false });
 
 export default function MainPage() {
@@ -72,13 +71,38 @@ export default function MainPage() {
   const renderAthleteName = (sprint) => {
     if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
     if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    return <span className="text-black font-bold">{sprint.display_name}</span>;
+    
+    return (
+      <div className="flex items-center gap-2">
+        {sprint.athlete_avatar && (
+          <img src={sprint.athlete_avatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+        )}
+        <span className="text-black font-bold flex items-center gap-1">
+          {sprint.display_name}
+          {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
+          {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
+        </span>
+      </div>
+    );
   };
 
   const processClaim = async (sprintId, phraseToTest, isAnon) => {
     const cleanPhrase = phraseToTest.toLowerCase().trim();
-    const athleteName = user.user_metadata?.display_name || 'Runner';
-    let query = supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('phrase', cleanPhrase).eq('is_claimed', false);
+    const meta = user.user_metadata || {};
+    const athleteName = meta.display_name || 'Runner';
+    
+    const updatePayload = {
+      is_claimed: true,
+      user_id: user.id,
+      display_name: athleteName,
+      is_anonymous: isAnon,
+      athlete_gender: meta.gender || 'Prefer not to say',
+      athlete_over_40: meta.is_over_40 || false,
+      athlete_clydesdale: meta.is_clydesdale || false,
+      athlete_avatar: meta.avatar_url || null
+    };
+
+    let query = supabase.from('sprints').update(updatePayload).eq('phrase', cleanPhrase).eq('is_claimed', false);
     if (sprintId) query = query.eq('id', sprintId);
 
     const { data } = await query.select();
@@ -101,8 +125,21 @@ export default function MainPage() {
 
   const submitSuggestedClaim = async (sprintId) => {
     const isAnon = suggestedAnon[sprintId] || false;
-    const athleteName = user.user_metadata?.display_name || 'Runner';
-    const { data } = await supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('id', sprintId).eq('is_claimed', false).select();
+    const meta = user.user_metadata || {};
+    const athleteName = meta.display_name || 'Runner';
+    
+    const updatePayload = {
+      is_claimed: true,
+      user_id: user.id,
+      display_name: athleteName,
+      is_anonymous: isAnon,
+      athlete_gender: meta.gender || 'Prefer not to say',
+      athlete_over_40: meta.is_over_40 || false,
+      athlete_clydesdale: meta.is_clydesdale || false,
+      athlete_avatar: meta.avatar_url || null
+    };
+
+    const { data } = await supabase.from('sprints').update(updatePayload).eq('id', sprintId).eq('is_claimed', false).select();
     if (data && data.length > 0) {
       const remaining = suggestedSprints.filter(s => s.id !== sprintId);
       setSuggestedSprints(remaining);
@@ -217,7 +254,6 @@ export default function MainPage() {
                 </div>
               </div>
 
-              {/* DYNAMIC CHART RENDERED HERE */}
               <div className="lg:col-span-2 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">My Progression</h3>
