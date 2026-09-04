@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AuthHeader from '../components/AuthHeader';
 import dynamic from 'next/dynamic';
 
-// THE FIX: This forces the chart to ONLY render on the client browser!
+// THE FIX: This safely imports the chart and tells Next.js NOT to crash on the server
 const ProgressionChart = dynamic(() => import('../components/ProgressionChart'), { ssr: false });
 
 export default function MainPage() {
@@ -15,6 +15,7 @@ export default function MainPage() {
   
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false); 
   
   const [recentGlobal, setRecentGlobal] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -34,6 +35,7 @@ export default function MainPage() {
   const [suggestedAnon, setSuggestedAnon] = useState({});
 
   useEffect(() => {
+    setMounted(true); 
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
@@ -214,7 +216,8 @@ export default function MainPage() {
                   )}
                 </div>
               </div>
-{/* DYNAMIC CHART RENDERED HERE */}
+
+              {/* DYNAMIC CHART RENDERED HERE */}
               <div className="lg:col-span-2 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">My Progression</h3>
@@ -227,7 +230,6 @@ export default function MainPage() {
                   </div>
                 </div>
                 
-                {/* WE NEED AT LEAST 2 POINTS TO DRAW A LINE */}
                 {chartData.length > 1 ? (
                   <div className="w-full mt-4 relative">
                     {mounted && <ProgressionChart data={chartData} />}
