@@ -27,6 +27,12 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   canvas.width = TARGET_SIZE;
   canvas.height = TARGET_SIZE;
 
+  // DIGITAL COOKIE CUTTER: Force the canvas to only draw inside a perfect circle
+  ctx.beginPath();
+  ctx.arc(TARGET_SIZE / 2, TARGET_SIZE / 2, TARGET_SIZE / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -40,7 +46,8 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   );
 
   return new Promise((resolve) => {
-    canvas.toBlob((file) => resolve(file), 'image/jpeg', 0.8);
+    // SAVED AS PNG: Crucial for keeping the corners transparent!
+    canvas.toBlob((file) => resolve(file), 'image/png');
   });
 };
 // ------------------------------------------------
@@ -70,12 +77,10 @@ export default function ProfilePage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isCropping, setIsCropping] = useState(false);
 
-  // 1. Mount State (Needed for Portals)
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 2. Lock Body Scroll when Cropper is open
   useEffect(() => {
     if (isCropping) {
       document.body.style.overflow = 'hidden';
@@ -87,7 +92,6 @@ export default function ProfilePage() {
     };
   }, [isCropping]);
 
-  // 3. Fetch User
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -136,7 +140,8 @@ export default function ProfilePage() {
       setIsCropping(false); 
       
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      const fileName = `${user.id}-${Math.random()}.jpg`;
+      // Notice the .png extension now!
+      const fileName = `${user.id}-${Math.random()}.png`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -165,7 +170,8 @@ export default function ProfilePage() {
       setAvatarHistory((prev) => [...prev, avatarUrl]);
     }
     const seed = Math.random().toString(36).substring(7);
-    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb`;
+    // Added &radius=50 to force DiceBear to give us a perfect circle
+    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb&radius=50`;
     setAvatarUrl(newAvatar);
   };
 
@@ -219,23 +225,17 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* 
-        THE REACT PORTAL CROPPER
-        This injects the cropper directly into the document body, completely 
-        escaping Next.js layouts, relative parents, and transform bugs.
-      */}
       {isCropping && mounted && createPortal(
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: '#000000',
-          zIndex: 2147483647, // Maximum possible z-index
+          zIndex: 2147483647, 
           display: 'flex',
           flexDirection: 'column',
           touchAction: 'none'
         }}>
           
-          {/* Header Block */}
           <div style={{ 
             padding: '16px', 
             paddingTop: '48px', 
@@ -248,7 +248,6 @@ export default function ProfilePage() {
             <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0 0' }}>Pinch to zoom, drag to move.</p>
           </div>
           
-          {/* Cropper Block */}
           <div style={{ position: 'relative', flex: 1, width: '100%', overflow: 'hidden' }}>
             <Cropper
               image={imageSrc}
@@ -263,11 +262,10 @@ export default function ProfilePage() {
             />
           </div>
           
-          {/* Controls Block */}
           <div style={{
             backgroundColor: '#ffffff',
             padding: '24px',
-            paddingBottom: '40px', // Extra space for iPhone home bar
+            paddingBottom: '40px',
             borderTopLeftRadius: '24px',
             borderTopRightRadius: '24px',
             flexShrink: 0,
@@ -328,7 +326,6 @@ export default function ProfilePage() {
         document.body
       )}
 
-      {/* --- MAIN PAGE CONTENT --- */}
       <div className="max-w-3xl mx-auto space-y-8">
         <AuthHeader />
 
@@ -352,7 +349,8 @@ export default function ProfilePage() {
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
                 
                 {avatarUrl && avatarUrl !== originalAvatar && (
-                  <div className="w-20 h-20 rounded-full bg-gray-200 border-2 border-gray-100 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
+                  // SHRUNK FROM w-20 TO w-12
+                  <div className="w-12 h-12 rounded-full bg-gray-200 border border-gray-200 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                     <img src={avatarUrl} alt="New Avatar Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
