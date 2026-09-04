@@ -171,61 +171,93 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER OVERLAY - HARD ABSOLUTE COORDINATES */}
+      {/* THE CROPPER MODAL - Hardcoded Inline Styles */}
       {isCropping && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 sm:p-8 touch-none">
-          <div className="relative w-full h-full max-w-2xl mx-auto bg-gray-900 sm:rounded-3xl overflow-hidden shadow-2xl">
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: '#000000',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          
+          {/* Top Half: Cropper */}
+          <div style={{ position: 'relative', flex: 1, width: '100%' }}>
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onCropComplete={onCropComplete}
+              onZoomChange={setZoom}
+            />
+          </div>
+          
+          {/* Bottom Half: Controls */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            padding: '24px',
+            paddingBottom: '40px', // Extra padding for iPhone home bar
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            position: 'relative',
+            zIndex: 9999999,
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
+          }}>
             
-            {/* CROPPER AREA: Lives exclusively from the top down to 180px above the bottom */}
-            <div className="absolute top-0 left-0 right-0 bottom-[180px]">
-              <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onCropComplete={onCropComplete}
-                onZoomChange={setZoom}
+            {/* Zoom Slider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6b7280' }}>Zoom</span>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                onChange={(e) => setZoom(e.target.value)}
+                style={{ width: '100%', cursor: 'pointer' }}
               />
             </div>
             
-            {/* CONTROLS AREA: Lives exclusively in the bottom 180px */}
-            <div className="absolute bottom-0 left-0 right-0 h-[180px] bg-white rounded-t-3xl sm:rounded-b-3xl sm:rounded-t-none p-6 flex flex-col justify-center space-y-6 shadow-[0_-10px_20px_rgba(0,0,0,0.2)]">
-              
-              {/* Zoom Slider */}
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-bold text-gray-500">Zoom</span>
-                <input
-                  type="range"
-                  value={zoom}
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  aria-labelledby="Zoom"
-                  onChange={(e) => setZoom(e.target.value)}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
-                />
-              </div>
-              
-              {/* Buttons */}
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                  className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleUploadCrop} 
-                  className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
-                >
-                  Save Crop
-                </button>
-              </div>
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button 
+                onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUploadCrop} 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Save Crop
+              </button>
             </div>
-
           </div>
         </div>
       )}
