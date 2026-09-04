@@ -43,11 +43,13 @@ export default function AuthHeader() {
               href="/profile"
               className="text-sm text-gray-700 font-bold hover:text-black hover:underline hidden md:flex items-center gap-2.5"
             >
-              {/* SHRUNK TO w-9 h-9 AND REMOVED GRAY BACKGROUND */}
+              {/* BYPASSING TAILWIND WITH INLINE STYLES FOR THE HEADER (28px) */}
               {user.user_metadata?.avatar_url && (
-                <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 shadow-sm flex-shrink-0 bg-transparent">
-                  <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                </div>
+                <img 
+                  src={user.user_metadata.avatar_url} 
+                  alt="Avatar" 
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #e5e7eb' }}
+                />
               )}
               {user.user_metadata?.display_name || user.email}
             </Link>
