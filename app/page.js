@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import AuthHeader from '../components/AuthHeader';
+import AuthHeader from '@/components/AuthHeader';
 
 export default function MainPage() {
   const router = useRouter();
@@ -25,6 +25,11 @@ export default function MainPage() {
   const [claimingId, setClaimingId] = useState(null);
   const [claimPhrase, setClaimPhrase] = useState('');
   const [isAnonymousInline, setIsAnonymousInline] = useState(false);
+
+  // --- SMART CLAIMING STATE ---
+  const [isSmartClaimOpen, setIsSmartClaimOpen] = useState(false);
+  const [suggestedSprints, setSuggestedSprints] = useState([]);
+  const [suggestedPhrases, setSuggestedPhrases] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,7 +73,6 @@ export default function MainPage() {
     const cleanPhrase = phraseToTest.toLowerCase().trim();
     const athleteName = user.user_metadata?.display_name || 'Runner';
     
-    // We update the record where ID (if provided) and Phrase match.
     let query = supabase
       .from('sprints')
       .update({ 
@@ -78,17 +82,72 @@ export default function MainPage() {
         is_anonymous: isAnon
       })
       .eq('phrase', cleanPhrase)
-      .eq('is_claimed', false); // Ensure we don't steal a claimed run
+      .eq('is_claimed', false);
 
     if (sprintId) query = query.eq('id', sprintId);
 
     const { data, error } = await query.select();
 
     if (data && data.length > 0) {
-      alert('Sprint claimed successfully!');
-      window.location.reload(); 
+      const claimedSprint = data[0];
+      
+      // --- SMART CLAIMING LOGIC ---
+      // Search for unclaimed runs 60 mins before and after this run
+      const sprintTime = new Date(claimedSprint.created_at);
+      const windowStart = new Date(sprintTime.getTime() - 60 * 60 * 1000).toISOString();
+      const windowEnd = new Date(sprintTime.getTime() + 60 * 60 * 1000).toISOString();
+
+      const { data: nearbyData } = await supabase
+        .from('sprints')
+        .select('*')
+        .eq('is_claimed', false)
+        .gte('created_at', windowStart)
+        .lte('created_at', windowEnd)
+        .neq('id', claimedSprint.id); // Exclude the one we just claimed
+
+      if (nearbyData && nearbyData.length > 0) {
+        setSuggestedSprints(nearbyData);
+        setIsSmartClaimOpen(true); // Open the modal!
+      } else {
+        alert('Sprint claimed successfully!');
+        window.location.reload(); 
+      }
     } else {
       alert('Incorrect phrase or sprint already claimed.');
+    }
+  };
+
+  // Handle claiming from inside the Smart Claim modal
+  const submitSuggestedClaim = async (sprintId) => {
+    const phrase = suggestedPhrases[sprintId];
+    if (!phrase) return;
+
+    const cleanPhrase = phrase.toLowerCase().trim();
+    const athleteName = user.user_metadata?.display_name || 'Runner';
+
+    const { data } = await supabase
+      .from('sprints')
+      .update({ 
+        is_claimed: true, 
+        user_id: user.id,
+        display_name: athleteName,
+        is_anonymous: false // Default to public for quick batch claiming
+      })
+      .eq('id', sprintId)
+      .eq('phrase', cleanPhrase)
+      .eq('is_claimed', false)
+      .select();
+
+    if (data && data.length > 0) {
+      // Remove it from the modal list dynamically
+      const remaining = suggestedSprints.filter(s => s.id !== sprintId);
+      setSuggestedSprints(remaining);
+      
+      if (remaining.length === 0) {
+        window.location.reload(); // Close everything if list is empty
+      }
+    } else {
+      alert('Incorrect phrase.');
     }
   };
 
@@ -111,7 +170,51 @@ export default function MainPage() {
   if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
+    <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
+      
+      {/* --- SMART CLAIM MODAL OVERLAY --- */}
+      {isSmartClaimOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <h2 className="text-2xl font-bold mb-2">Did you run these too? ⚡</h2>
+            <p className="text-gray-500 mb-6">We found other unclaimed sprints recorded around the same time. Claim your whole session!</p>
+
+            <div className="space-y-4 mb-8">
+              {suggestedSprints.map(sprint => (
+                <div key={sprint.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="font-mono text-2xl font-bold">{sprint.time_seconds.toFixed(2)}s</div>
+                    <div className="text-sm text-gray-500">{new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="3-word phrase"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-32 focus:outline-none focus:ring-2 focus:ring-black"
+                      value={suggestedPhrases[sprint.id] || ''}
+                      onChange={(e) => setSuggestedPhrases({...suggestedPhrases, [sprint.id]: e.target.value})}
+                    />
+                    <button
+                      onClick={() => submitSuggestedClaim(sprint.id)}
+                      className="bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 shrink-0"
+                    >
+                      Claim
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-gray-100 text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+            >
+              I'm Done
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto space-y-8">
         
         <AuthHeader />
@@ -202,7 +305,7 @@ export default function MainPage() {
                             placeholder="Enter 3-word phrase"
                             value={claimPhrase}
                             onChange={(e) => setClaimPhrase(e.target.value)}
-                            className="px-3 py-2 border rounded text-sm w-full"
+                            className="px-3 py-2 border rounded text-sm w-full bg-white"
                           />
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -216,7 +319,7 @@ export default function MainPage() {
                             </div>
                             <button 
                               onClick={() => processClaim(sprint.id, claimPhrase, isAnonymousInline)} 
-                              className="bg-black text-white px-4 py-1.5 rounded text-sm font-medium"
+                              className="bg-black text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-gray-800"
                             >
                               Verify
                             </button>
