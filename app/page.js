@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
-import AuthHeader from '@/components/AuthHeader';
+import AuthHeader from '../components/AuthHeader';
 
 export default function MainPage() {
   const router = useRouter();
