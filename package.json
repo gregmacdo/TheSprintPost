@@ -7,10 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/supabase-js": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "recharts": "^2.12.0"
+    "recharts": "latest",
+    "react-easy-crop": "latest"
+
   }
 }
