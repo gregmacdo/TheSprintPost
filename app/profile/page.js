@@ -1,10 +1,47 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthHeader from '../../components/AuthHeader';
+import Cropper from 'react-easy-crop';
+
+// --- CANVAS HELPER FUNCTION TO CROP THE IMAGE ---
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.setAttribute('crossOrigin', 'anonymous');
+    image.src = url;
+  });
+
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
+  return new Promise((resolve) => {
+    canvas.toBlob((file) => resolve(file), 'image/jpeg');
+  });
+};
+// ------------------------------------------------
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -19,7 +56,13 @@ export default function ProfilePage() {
   const [isOver40, setIsOver40] = useState(false);
   const [isClydesdale, setIsClydesdale] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
-  const [uploading, setUploading] = useState(false);
+
+  // Cropper State
+  const [imageSrc, setImageSrc] = useState(null); // The raw image loaded into the browser
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -32,7 +75,6 @@ export default function ProfilePage() {
       const currentUser = session.user;
       setUser(currentUser);
       
-      // Load existing metadata
       const meta = currentUser.user_metadata || {};
       setDisplayName(meta.display_name || '');
       setGender(meta.gender || 'Prefer not to say');
@@ -46,40 +88,53 @@ export default function ProfilePage() {
     fetchUser();
   }, [router]);
 
-  const uploadAvatar = async (event) => {
+  // 1. User selects a file -> Read it into the browser for cropping
+  const onFileChange = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageSrc(reader.result);
+        setIsCropping(true); // Open the crop modal
+      });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  // 2. User confirms crop -> Cut the image and upload to Supabase
+  const handleUploadCrop = async () => {
     try {
-      setUploading(true);
       setMessage('');
+      setIsCropping(false); // close modal visually while we process
       
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.');
-      }
+      // Cut the image using our canvas helper
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      
+      const fileName = `${user.id}-${Math.random()}.jpg`;
 
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      // 1. Upload the image to the 'avatars' bucket
+      // Upload the cropped blob
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(fileName, croppedBlob);
 
       if (uploadError) throw uploadError;
 
-      // 2. Get the public URL for the image
+      // Get URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
-      // 3. Save it instantly to state
       setAvatarUrl(publicUrl);
-      setMessage('Avatar uploaded! Make sure to click Save Profile.');
+      setImageSrc(null); // Clear the raw image
+      setMessage('Avatar cropped & uploaded! Click Save Profile to apply.');
       
     } catch (error) {
       alert(error.message);
-    } finally {
-      setUploading(false);
+      setImageSrc(null);
     }
   };
 
@@ -88,7 +143,7 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage('');
 
-    // Update the user's metadata in Supabase Auth
+    // 1. Update the user's Auth metadata
     const { data, error } = await supabase.auth.updateUser({
       data: {
         display_name: displayName,
@@ -101,18 +156,76 @@ export default function ProfilePage() {
 
     if (error) {
       setMessage(`Error: ${error.message}`);
-    } else {
-      setMessage('Profile updated successfully!');
-      // Update local state to reflect changes without reloading
-      setUser(data.user);
+      setSaving(false);
+      return;
     }
+
+    // 2. THE FIX: Retroactively update ALL past sprints claimed by this user!
+    await supabase.from('sprints').update({
+      display_name: displayName,
+      athlete_gender: gender,
+      athlete_over_40: isOver40,
+      athlete_clydesdale: isClydesdale,
+      athlete_avatar: avatarUrl
+    }).eq('user_id', user.id);
+
+    setMessage('Profile updated successfully! All your past sprints have been updated.');
+    setUser(data.user);
     setSaving(false);
   };
 
   if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
+    <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
+      
+      {/* THE CROPPER MODAL OVERLAY */}
+      {isCropping && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 bg-gray-900 text-white text-center">
+              <h3 className="font-bold text-lg">Crop Your Avatar</h3>
+              <p className="text-sm text-gray-400 mt-1">Drag to pan, use the slider to zoom.</p>
+            </div>
+            
+            {/* Cropper Container */}
+            <div className="relative w-full h-80 bg-gray-100">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1} // Forces a perfect square
+                cropShape="round" // Shows a circle overlay so they know what it will look like
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            
+            {/* Controls */}
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-bold text-gray-500">Zoom</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(e.target.value)}
+                  className="w-full accent-black cursor-pointer"
+                />
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => { setIsCropping(false); setImageSrc(null); }} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Cancel</button>
+                <button onClick={handleUploadCrop} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm">Save Crop</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto space-y-8">
         
         <AuthHeader />
@@ -148,11 +261,10 @@ export default function ProfilePage() {
                   <input 
                     type="file" 
                     accept="image/*"
-                    onChange={uploadAvatar}
-                    disabled={uploading}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer disabled:opacity-50"
+                    onChange={onFileChange}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
                   />
-                  {uploading && <p className="text-xs text-gray-500 mt-2">Uploading...</p>}
+                  <p className="text-xs text-gray-500 mt-2">Will be cropped into a circle automatically.</p>
                 </div>
               </div>
 
