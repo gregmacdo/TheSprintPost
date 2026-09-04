@@ -41,11 +41,11 @@ export default function AuthHeader() {
           <div className="flex items-center gap-5">
             <Link 
               href="/profile"
-              className="text-sm text-gray-700 font-bold hover:text-black hover:underline hidden md:flex items-center gap-3"
+              className="text-sm text-gray-700 font-bold hover:text-black hover:underline hidden md:flex items-center gap-2.5"
             >
-              {/* DISPLAYED MUCH LARGER IN HEADER */}
+              {/* SHRUNK TO w-9 h-9 AND REMOVED GRAY BACKGROUND */}
               {user.user_metadata?.avatar_url && (
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm flex-shrink-0 bg-gray-50">
+                <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 shadow-sm flex-shrink-0 bg-transparent">
                   <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
               )}
