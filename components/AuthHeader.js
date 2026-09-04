@@ -41,42 +41,20 @@ export default function AuthHeader() {
           <div className="flex items-center gap-5">
             <Link 
               href="/profile"
-              className="text-sm text-gray-700 font-bold hover:text-black hover:underline hidden md:flex items-center gap-2.5"
+              className="text-sm text-gray-700 font-bold hover:text-black hover:underline flex items-center gap-3"
             >
-              {user.user_metadata?.avatar_url ? (
-                <img 
-                  src={user.user_metadata.avatar_url} 
-                  alt="Avatar" 
-                  style={{ 
-                    width: '36px', 
-                    height: '36px', 
-                    minWidth: '36px', 
-                    minHeight: '36px', 
-                    borderRadius: '50%', 
-                    objectFit: 'cover', 
-                    flexShrink: 0, 
-                    border: '1px solid #e5e7eb' 
-                  }}
-                />
-              ) : (
-                <div style={{ 
-                  width: '36px', 
-                  height: '36px', 
-                  minWidth: '36px', 
-                  minHeight: '36px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#f3f4f6', 
-                  border: '1px solid #e5e7eb', 
-                  flexShrink: 0, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  fontSize: '16px' 
-                }}>
-                  👤
-                </div>
-              )}
-              {user.user_metadata?.display_name || user.email}
+              <div style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px' }} className="rounded-full overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-100 flex items-center justify-center">
+                {user.user_metadata?.avatar_url ? (
+                  <img 
+                    src={user.user_metadata.avatar_url} 
+                    alt="Avatar" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                )}
+              </div>
+              <span>{user.user_metadata?.display_name || user.email}</span>
             </Link>
             <button 
               onClick={handleLogout}
