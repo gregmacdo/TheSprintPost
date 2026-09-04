@@ -171,66 +171,62 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY */}
+      {/* THE CROPPER MODAL OVERLAY - Full Screen Absolute Layout */}
       {isCropping && (
-        <div className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 touch-none">
-          <div className="bg-white w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col">
-            
-            {/* Header */}
-            <div className="p-4 bg-gray-900 text-white text-center border-b border-gray-800">
-              <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-              <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
-            </div>
-            
-            {/* Cropper Container 
-                CRITICAL FIX: A strict relative block with a fixed height. 
-                No absolute positioning hacks allowed here.
-            */}
-            <div className="relative w-full h-[350px] sm:h-[400px] bg-black">
-              <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onCropComplete={onCropComplete}
-                onZoomChange={setZoom}
+        <div className="fixed inset-0 z-[9999] bg-black touch-none">
+          
+          {/* Floating Header */}
+          <div className="absolute top-0 inset-x-0 p-4 pt-8 z-[10000] bg-gradient-to-b from-black/80 to-transparent text-white text-center pointer-events-none">
+            <h3 className="font-bold text-lg">Crop Your Avatar</h3>
+            <p className="text-xs text-gray-300 mt-1">Pinch to zoom, drag to move.</p>
+          </div>
+          
+          {/* Cropper Container - Takes up the whole screen behind the controls */}
+          <div className="absolute inset-0 z-[9998]">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onCropComplete={onCropComplete}
+              onZoomChange={setZoom}
+            />
+          </div>
+          
+          {/* Controls Box - Pinned strictly to the bottom */}
+          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl p-6 pb-8 z-[10000] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] space-y-6">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-gray-500">Zoom</span>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                aria-labelledby="Zoom"
+                onChange={(e) => setZoom(e.target.value)}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
               />
             </div>
-            
-            {/* Controls Box - Physically separated from the cropper above it */}
-            <div className="p-5 bg-white space-y-5">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-bold text-gray-500">Zoom</span>
-                <input
-                  type="range"
-                  value={zoom}
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  aria-labelledby="Zoom"
-                  onChange={(e) => setZoom(e.target.value)}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleUploadCrop} 
-                  className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
-                >
-                  Save Crop
-                </button>
-              </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
+                className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUploadCrop} 
+                className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
+              >
+                Save Crop
+              </button>
             </div>
           </div>
+
         </div>
       )}
 
