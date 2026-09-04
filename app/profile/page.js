@@ -58,7 +58,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   // Cropper State
-  const [imageSrc, setImageSrc] = useState(null); // The raw image loaded into the browser
+  const [imageSrc, setImageSrc] = useState(null); 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -88,14 +88,13 @@ export default function ProfilePage() {
     fetchUser();
   }, [router]);
 
-  // 1. User selects a file -> Read it into the browser for cropping
   const onFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.addEventListener('load', () => {
         setImageSrc(reader.result);
-        setIsCropping(true); // Open the crop modal
+        setIsCropping(true); 
       });
       reader.readAsDataURL(file);
     }
@@ -105,31 +104,26 @@ export default function ProfilePage() {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  // 2. User confirms crop -> Cut the image and upload to Supabase
   const handleUploadCrop = async () => {
     try {
       setMessage('');
-      setIsCropping(false); // close modal visually while we process
+      setIsCropping(false); 
       
-      // Cut the image using our canvas helper
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      
       const fileName = `${user.id}-${Math.random()}.jpg`;
 
-      // Upload the cropped blob
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, croppedBlob);
 
       if (uploadError) throw uploadError;
 
-      // Get URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
       setAvatarUrl(publicUrl);
-      setImageSrc(null); // Clear the raw image
+      setImageSrc(null); 
       setMessage('Avatar cropped & uploaded! Click Save Profile to apply.');
       
     } catch (error) {
@@ -143,7 +137,6 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage('');
 
-    // 1. Update the user's Auth metadata
     const { data, error } = await supabase.auth.updateUser({
       data: {
         display_name: displayName,
@@ -160,7 +153,6 @@ export default function ProfilePage() {
       return;
     }
 
-    // 2. THE FIX: Retroactively update ALL past sprints claimed by this user!
     await supabase.from('sprints').update({
       display_name: displayName,
       athlete_gender: gender,
@@ -179,23 +171,25 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY */}
+      {/* THE CROPPER MODAL OVERLAY (MOBILE OPTIMIZED) */}
       {isCropping && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-6 bg-gray-900 text-white text-center">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center sm:p-4 backdrop-blur-sm touch-none">
+          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:max-w-lg overflow-hidden shadow-2xl flex flex-col">
+            
+            {/* Header */}
+            <div className="p-4 sm:p-6 bg-gray-900 text-white text-center shrink-0">
               <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-              <p className="text-sm text-gray-400 mt-1">Drag to pan, use the slider to zoom.</p>
+              <p className="text-sm text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
             </div>
             
-            {/* Cropper Container */}
-            <div className="relative w-full h-80 bg-gray-100">
+            {/* Cropper Container - Flex grow takes all available mobile space */}
+            <div className="relative w-full flex-grow sm:h-80 min-h-[300px] bg-gray-100">
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={1} // Forces a perfect square
-                cropShape="round" // Shows a circle overlay so they know what it will look like
+                aspect={1}
+                cropShape="round"
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
@@ -203,7 +197,7 @@ export default function ProfilePage() {
             </div>
             
             {/* Controls */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 shrink-0 bg-white border-t border-gray-100">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-bold text-gray-500">Zoom</span>
                 <input
@@ -214,12 +208,12 @@ export default function ProfilePage() {
                   step={0.1}
                   aria-labelledby="Zoom"
                   onChange={(e) => setZoom(e.target.value)}
-                  className="w-full accent-black cursor-pointer"
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
                 />
               </div>
               <div className="flex gap-4">
-                <button onClick={() => { setIsCropping(false); setImageSrc(null); }} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Cancel</button>
-                <button onClick={handleUploadCrop} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm">Save Crop</button>
+                <button onClick={() => { setIsCropping(false); setImageSrc(null); }} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm sm:text-base">Cancel</button>
+                <button onClick={handleUploadCrop} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm sm:text-base">Save Crop</button>
               </div>
             </div>
           </div>
@@ -227,7 +221,6 @@ export default function ProfilePage() {
       )}
 
       <div className="max-w-3xl mx-auto space-y-8">
-        
         <AuthHeader />
 
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -248,21 +241,21 @@ export default function ProfilePage() {
             <form onSubmit={handleSaveProfile} className="space-y-8">
               
               {/* Avatar Section */}
-              <div className="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-gray-100">
-                <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
+                <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-3xl">👤</span>
                   )}
                 </div>
-                <div className="w-full sm:w-auto">
+                <div className="w-full">
                   <label className="block text-sm font-bold mb-2">Profile Picture</label>
                   <input 
                     type="file" 
                     accept="image/*"
                     onChange={onFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
+                    className="block w-full max-w-xs mx-auto sm:mx-0 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
                   />
                   <p className="text-xs text-gray-500 mt-2">Will be cropped into a circle automatically.</p>
                 </div>
