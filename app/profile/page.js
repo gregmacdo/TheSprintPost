@@ -170,9 +170,8 @@ export default function ProfilePage() {
     }
     const seed = Math.random().toString(36).substring(7);
     
-    // 1. Changed /svg to /png
-    // 2. Removed the background parameter so it is transparent by default
-    const newAvatar = `https://api.dicebear.com/10.x/critters/png?seed=${seed}`;
+    // We are asking DiceBear for a PNG, AND asking them to crop it to a circle!
+    const newAvatar = `https://api.dicebear.com/10.x/critters/png?seed=${seed}&borderRadius=50`;
     
     setAvatarUrl(newAvatar);
   };
