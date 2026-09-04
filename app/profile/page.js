@@ -63,6 +63,9 @@ export default function ProfilePage() {
   // Track both the currently saved avatar and the one we are previewing
   const [originalAvatar, setOriginalAvatar] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
+  
+  // Track history so users can "go back" if they accidentally skip a good random avatar
+  const [avatarHistory, setAvatarHistory] = useState([]);
 
   // Cropper State
   const [imageSrc, setImageSrc] = useState(null); 
@@ -131,6 +134,9 @@ export default function ProfilePage() {
         .from('avatars')
         .getPublicUrl(fileName);
 
+      // Save the current avatar to history before switching to the newly cropped one
+      if (avatarUrl) setAvatarHistory((prev) => [...prev, avatarUrl]);
+      
       setAvatarUrl(publicUrl);
       setImageSrc(null); 
       setMessage('Avatar cropped & uploaded! Click Save Profile to apply.');
@@ -141,11 +147,26 @@ export default function ProfilePage() {
     }
   };
 
-  // Uses the industry-standard DiceBear API to pull a random avatar
+  // Uses the industry-standard DiceBear API to pull a random "critter" animal avatar
   const generateRandomAvatar = () => {
+    // Before generating a new one, save the current one to history
+    if (avatarUrl) {
+      setAvatarHistory((prev) => [...prev, avatarUrl]);
+    }
+    
     const seed = Math.random().toString(36).substring(7);
-    const newAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&backgroundColor=e5e7eb`;
+    const newAvatar = `https://api.dicebear.com/9.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb`;
     setAvatarUrl(newAvatar);
+  };
+
+  // Pops the last avatar out of history and sets it back as the current avatar
+  const undoAvatar = () => {
+    if (avatarHistory.length > 0) {
+      const newHistory = [...avatarHistory];
+      const previousAvatar = newHistory.pop(); // grab the last one
+      setAvatarHistory(newHistory); // update history removing the last one
+      setAvatarUrl(previousAvatar); // set it back as active
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -177,7 +198,8 @@ export default function ProfilePage() {
       athlete_avatar: avatarUrl
     }).eq('user_id', user.id);
 
-    setOriginalAvatar(avatarUrl); // Reset the original avatar to hide the preview
+    setOriginalAvatar(avatarUrl); 
+    setAvatarHistory([]); // Clear the history once saved
     setMessage('Profile updated successfully! All your past sprints have been updated.');
     setUser(data.user);
     setSaving(false);
@@ -284,15 +306,27 @@ export default function ProfilePage() {
                     className="block w-full max-w-xs mx-auto sm:mx-0 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
                   />
                   
-                  <div className="mt-4 flex items-center gap-3 justify-center sm:justify-start">
+                  <div className="mt-4 flex items-center gap-3 justify-center sm:justify-start flex-wrap">
                     <span className="text-sm text-gray-400 font-medium">or</span>
-                    <button 
-                      type="button" 
-                      onClick={generateRandomAvatar}
-                      className="text-sm bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-full font-bold transition-colors"
-                    >
-                      🎲 Generate Random
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Only show the undo button if there's actually history to undo */}
+                      {avatarHistory.length > 0 && (
+                        <button 
+                          type="button" 
+                          onClick={undoAvatar}
+                          className="text-sm bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-full font-bold transition-colors shadow-sm"
+                        >
+                          ↩️ Undo
+                        </button>
+                      )}
+                      <button 
+                        type="button" 
+                        onClick={generateRandomAvatar}
+                        className="text-sm bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-full font-bold transition-colors shadow-sm"
+                      >
+                        🎲 Generate Random
+                      </button>
+                    </div>
                   </div>
                   
                   {avatarUrl !== originalAvatar && (
