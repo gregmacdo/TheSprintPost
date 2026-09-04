@@ -75,7 +75,6 @@ export default function MainPage() {
     return (
       <div className="flex items-center gap-2">
         {sprint.athlete_avatar && (
-          {/* BYPASSING TAILWIND WITH INLINE STYLES FOR THE SPRINT LIST (24px) */}
           <img 
             src={sprint.athlete_avatar} 
             alt="Avatar" 
