@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function AuthHeader() {
@@ -25,29 +25,28 @@ export default function AuthHeader() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.refresh(); // Refresh the page to clear any user data
+    // Redirect to home and refresh to clear state
+    router.push('/');
+    router.refresh(); 
   };
 
   return (
     <header className="mb-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <div className="text-center sm:text-left mb-4 sm:mb-0">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-1">⚡ The Sprint Post</h1>
+        {/* Made the title a clickable link back to home just in case they are on the login page */}
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <h1 className="text-3xl font-extrabold tracking-tight mb-1 text-black">⚡ The Sprint Post</h1>
+        </Link>
         <p className="text-sm text-gray-500">Run first. Claim later.</p>
       </div>
       
       <div>
         {user ? (
           <div className="flex items-center gap-4">
+            {/* Show display name instead of email */}
             <span className="text-sm text-gray-500 font-medium hidden md:block">
-              {user.email}
+              {user.user_metadata?.display_name || user.email}
             </span>
-            {/* We will build this dashboard page next! */}
-            <Link 
-              href="/dashboard"
-              className="px-4 py-2 text-sm font-medium text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Dashboard
-            </Link>
             <button 
               onClick={handleLogout}
               className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
