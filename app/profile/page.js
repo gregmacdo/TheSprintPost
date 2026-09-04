@@ -171,33 +171,34 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY (MOBILE OPTIMIZED) */}
+      {/* THE CROPPER MODAL OVERLAY (MOBILE OPTIMIZED & OVERFLOW FIXED) */}
       {isCropping && (
         <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center sm:p-4 backdrop-blur-sm touch-none">
-          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:max-w-lg overflow-hidden shadow-2xl flex flex-col">
+          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:max-w-xl overflow-hidden shadow-2xl flex flex-col">
             
             {/* Header */}
-            <div className="p-4 sm:p-6 bg-gray-900 text-white text-center shrink-0">
+            <div className="relative z-10 p-4 sm:p-6 bg-gray-900 text-white text-center shrink-0">
               <h3 className="font-bold text-lg">Crop Your Avatar</h3>
               <p className="text-sm text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
             </div>
             
-            {/* Cropper Container - Flex grow takes all available mobile space */}
-            <div className="relative w-full flex-grow sm:h-80 min-h-[300px] bg-gray-100">
+            {/* Cropper Container - Added overflow-hidden and bg-black */}
+            <div className="relative w-full flex-grow sm:h-96 min-h-[400px] bg-black overflow-hidden">
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
                 aspect={1}
                 cropShape="round"
+                showGrid={false}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
               />
             </div>
             
-            {/* Controls */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 shrink-0 bg-white border-t border-gray-100">
+            {/* Controls - Added relative z-10 and drop shadow to ensure it stays on top */}
+            <div className="relative z-10 p-4 sm:p-6 space-y-4 sm:space-y-6 shrink-0 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-bold text-gray-500">Zoom</span>
                 <input
@@ -212,7 +213,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="flex gap-4">
-                <button onClick={() => { setIsCropping(false); setImageSrc(null); }} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm sm:text-base">Cancel</button>
+                <button onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm sm:text-base">Cancel</button>
                 <button onClick={handleUploadCrop} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm sm:text-base">Save Crop</button>
               </div>
             </div>
