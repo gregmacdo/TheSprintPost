@@ -23,7 +23,6 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  // BUMPED TO 512px FOR SHARPER IMAGES IN THE UI
   const TARGET_SIZE = 512;
   canvas.width = TARGET_SIZE;
   canvas.height = TARGET_SIZE;
@@ -83,6 +82,17 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
+    if (isCropping) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isCropping]);
+
+  useEffect(() => {
     const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -130,7 +140,7 @@ export default function ProfilePage() {
       setIsCropping(false); 
       
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      const fileName = `${user.id}-${Math.random()}.png`; // PNG extension
+      const fileName = `${user.id}-${Math.random()}.png`; 
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -159,8 +169,7 @@ export default function ProfilePage() {
       setAvatarHistory((prev) => [...prev, avatarUrl]);
     }
     const seed = Math.random().toString(36).substring(7);
-    // REMOVED BACKGROUND COLOR - Now it is perfectly transparent!
-    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}`;
+    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=transparent`;
     setAvatarUrl(newAvatar);
   };
 
@@ -338,8 +347,7 @@ export default function ProfilePage() {
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
                 
                 {avatarUrl && avatarUrl !== originalAvatar && (
-                  // MADE PREVIEW NICE AND BIG AGAIN SO THEY CAN VERIFY THE HIGH RES
-                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
+                  <div className="w-24 h-24 rounded-full bg-transparent border border-gray-200 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                     <img src={avatarUrl} alt="New Avatar Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
