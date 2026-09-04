@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import AuthHeader from '../components/AuthHeader';
+import AuthHeader from '@/components/AuthHeader';
 
 export default function MainPage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function MainPage() {
   // --- SMART CLAIMING STATE ---
   const [isSmartClaimOpen, setIsSmartClaimOpen] = useState(false);
   const [suggestedSprints, setSuggestedSprints] = useState([]);
-  const [suggestedPhrases, setSuggestedPhrases] = useState({});
+  const [suggestedAnon, setSuggestedAnon] = useState({}); // Tracks anonymity per suggested sprint
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,7 +91,6 @@ export default function MainPage() {
     if (data && data.length > 0) {
       const claimedSprint = data[0];
       
-      // --- SMART CLAIMING LOGIC ---
       // Search for unclaimed runs 60 mins before and after this run
       const sprintTime = new Date(claimedSprint.created_at);
       const windowStart = new Date(sprintTime.getTime() - 60 * 60 * 1000).toISOString();
@@ -103,11 +102,11 @@ export default function MainPage() {
         .eq('is_claimed', false)
         .gte('created_at', windowStart)
         .lte('created_at', windowEnd)
-        .neq('id', claimedSprint.id); // Exclude the one we just claimed
+        .neq('id', claimedSprint.id);
 
       if (nearbyData && nearbyData.length > 0) {
         setSuggestedSprints(nearbyData);
-        setIsSmartClaimOpen(true); // Open the modal!
+        setIsSmartClaimOpen(true);
       } else {
         alert('Sprint claimed successfully!');
         window.location.reload(); 
@@ -117,12 +116,9 @@ export default function MainPage() {
     }
   };
 
-  // Handle claiming from inside the Smart Claim modal
+  // NEW LOGIC: Trust the user! Just claim by ID, no phrase needed.
   const submitSuggestedClaim = async (sprintId) => {
-    const phrase = suggestedPhrases[sprintId];
-    if (!phrase) return;
-
-    const cleanPhrase = phrase.toLowerCase().trim();
+    const isAnon = suggestedAnon[sprintId] || false;
     const athleteName = user.user_metadata?.display_name || 'Runner';
 
     const { data } = await supabase
@@ -131,23 +127,21 @@ export default function MainPage() {
         is_claimed: true, 
         user_id: user.id,
         display_name: athleteName,
-        is_anonymous: false // Default to public for quick batch claiming
+        is_anonymous: isAnon
       })
       .eq('id', sprintId)
-      .eq('phrase', cleanPhrase)
-      .eq('is_claimed', false)
+      .eq('is_claimed', false) // Ensure nobody sniped it in the last few seconds
       .select();
 
     if (data && data.length > 0) {
-      // Remove it from the modal list dynamically
       const remaining = suggestedSprints.filter(s => s.id !== sprintId);
       setSuggestedSprints(remaining);
       
       if (remaining.length === 0) {
-        window.location.reload(); // Close everything if list is empty
+        window.location.reload();
       }
     } else {
-      alert('Incorrect phrase.');
+      alert('Could not claim this sprint. Someone else may have claimed it!');
     }
   };
 
@@ -186,14 +180,16 @@ export default function MainPage() {
                     <div className="font-mono text-2xl font-bold">{sprint.time_seconds.toFixed(2)}s</div>
                     <div className="text-sm text-gray-500">{new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <input
-                      type="text"
-                      placeholder="3-word phrase"
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-32 focus:outline-none focus:ring-2 focus:ring-black"
-                      value={suggestedPhrases[sprint.id] || ''}
-                      onChange={(e) => setSuggestedPhrases({...suggestedPhrases, [sprint.id]: e.target.value})}
-                    />
+                  <div className="flex items-center justify-between gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        id={`suggest-anon-${sprint.id}`}
+                        checked={suggestedAnon[sprint.id] || false}
+                        onChange={(e) => setSuggestedAnon({...suggestedAnon, [sprint.id]: e.target.checked})}
+                      />
+                      <label htmlFor={`suggest-anon-${sprint.id}`} className="text-sm text-gray-600">Anonymous</label>
+                    </div>
                     <button
                       onClick={() => submitSuggestedClaim(sprint.id)}
                       className="bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 shrink-0"
