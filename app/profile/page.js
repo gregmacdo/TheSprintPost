@@ -171,18 +171,18 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY - Full Screen Absolute Layout */}
+      {/* THE CROPPER MODAL OVERLAY - Strict Flex Column Layout */}
       {isCropping && (
-        <div className="fixed inset-0 z-[9999] bg-black touch-none">
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col touch-none">
           
-          {/* Floating Header */}
-          <div className="absolute top-0 inset-x-0 p-4 pt-8 z-[10000] bg-gradient-to-b from-black/80 to-transparent text-white text-center pointer-events-none">
+          {/* Top Block: Header (Shrinks to fit content) */}
+          <div className="shrink-0 pt-12 pb-4 px-4 bg-black text-white text-center">
             <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-            <p className="text-xs text-gray-300 mt-1">Pinch to zoom, drag to move.</p>
+            <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
           </div>
           
-          {/* Cropper Container - Takes up the whole screen behind the controls */}
-          <div className="absolute inset-0 z-[9998]">
+          {/* Middle Block: Cropper (Flexes to fill ALL remaining space) */}
+          <div className="flex-1 relative w-full bg-gray-900 overflow-hidden">
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -196,8 +196,8 @@ export default function ProfilePage() {
             />
           </div>
           
-          {/* Controls Box - Pinned strictly to the bottom */}
-          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl p-6 pb-8 z-[10000] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] space-y-6">
+          {/* Bottom Block: Controls (Shrinks to fit content, anchored to bottom) */}
+          <div className="shrink-0 bg-white rounded-t-3xl p-6 pb-12 space-y-6">
             <div className="flex items-center gap-4">
               <span className="text-sm font-bold text-gray-500">Zoom</span>
               <input
@@ -315,26 +315,4 @@ export default function ProfilePage() {
                     />
                     <div>
                       <span className="text-sm font-bold block">Clydesdale / Athena</span>
-                      <span className="text-xs text-gray-500">Male 200+ lbs / Female 165+ lbs</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <button 
-                  type="submit" 
-                  disabled={saving}
-                  className="bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm w-full sm:w-auto"
-                >
-                  {saving ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-        </div>
-      </div>
-    </main>
-  );
-}
+                      <span className="text-xs text-gray-500">Male 200
