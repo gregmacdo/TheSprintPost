@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 import AuthHeader from '../../components/AuthHeader';
+import AthleteBadge from '../../components/AthleteBadge';
 
 const PAGE_SIZE = 100;
 
@@ -77,33 +78,6 @@ export default function LeaderboardPage() {
       hour: 'numeric', 
       minute: '2-digit'
     });
-  };
-
-  const renderAthleteName = (sprint) => {
-    if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
-    if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    
-    return (
-      <div className="flex items-center gap-3">
-        {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 overflow-hidden flex-shrink-0 flex items-center justify-center">
-          {sprint.athlete_avatar ? (
-            <img src={sprint.athlete_avatar} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-xs">👤</span>
-          )}
-        </div>
-        
-        <div>
-          <div className="text-black font-bold flex items-center gap-1.5">
-            {sprint.display_name}
-            {/* Demographic Badges */}
-            {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
-            {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const getRankStyle = (rank) => {
@@ -206,9 +180,7 @@ export default function LeaderboardPage() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="text-lg">
-                            {renderAthleteName(sprint)}
-                          </div>
+                          <AthleteBadge sprint={sprint} />
                         </td>
                         <td className="p-4 text-sm text-gray-500">
                           {formatDateTime(sprint.created_at)}
