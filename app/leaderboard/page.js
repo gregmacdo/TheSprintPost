@@ -10,16 +10,21 @@ const PAGE_SIZE = 100;
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filters
   const [boardFilter, setBoardFilter] = useState('all-time');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [ageFilter, setAgeFilter] = useState('all'); // 'all' or 'over_40'
+  const [weightFilter, setWeightFilter] = useState('all'); // 'all' or 'clydesdale'
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Reset to page 1 whenever the time filter changes
+  // Reset to page 1 whenever any filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [boardFilter]);
+  }, [boardFilter, genderFilter, ageFilter, weightFilter]);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -28,13 +33,13 @@ export default function LeaderboardPage() {
       const from = (currentPage - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // We ask Supabase for the exact count so we can calculate total pages
       let query = supabase
         .from('sprints')
         .select('*', { count: 'exact' })
         .order('time_seconds', { ascending: true })
         .range(from, to); 
 
+      // Apply Time Filter
       if (boardFilter !== 'all-time') {
         const pastDate = new Date();
         if (boardFilter === 'today') pastDate.setHours(pastDate.getHours() - 24);
@@ -42,6 +47,17 @@ export default function LeaderboardPage() {
         if (boardFilter === 'month') pastDate.setDate(pastDate.getDate() - 30);
         if (boardFilter === 'year') pastDate.setDate(pastDate.getDate() - 365);
         query = query.gte('created_at', pastDate.toISOString());
+      }
+
+      // Apply Demographic Filters
+      if (genderFilter !== 'all') {
+        query = query.eq('athlete_gender', genderFilter);
+      }
+      if (ageFilter === 'over_40') {
+        query = query.eq('athlete_over_40', true);
+      }
+      if (weightFilter === 'clydesdale') {
+        query = query.eq('athlete_clydesdale', true);
       }
 
       const { data, count } = await query;
@@ -52,9 +68,8 @@ export default function LeaderboardPage() {
     };
 
     fetchLeaderboard();
-  }, [boardFilter, currentPage]);
+  }, [boardFilter, genderFilter, ageFilter, weightFilter, currentPage]);
 
-  // Standardizes Date/Time with NO leading zeroes on hours
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', { 
       month: 'short', 
@@ -67,13 +82,34 @@ export default function LeaderboardPage() {
   const renderAthleteName = (sprint) => {
     if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
     if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    return <span className="text-black font-bold">{sprint.display_name}</span>;
+    
+    return (
+      <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 overflow-hidden flex-shrink-0 flex items-center justify-center">
+          {sprint.athlete_avatar ? (
+            <img src={sprint.athlete_avatar} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xs">👤</span>
+          )}
+        </div>
+        
+        <div>
+          <div className="text-black font-bold flex items-center gap-1.5">
+            {sprint.display_name}
+            {/* Demographic Badges */}
+            {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
+            {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const getRankStyle = (rank) => {
-    if (rank === 1) return "bg-yellow-100 text-yellow-700 border-yellow-200"; // Gold
-    if (rank === 2) return "bg-gray-200 text-gray-700 border-gray-300"; // Silver
-    if (rank === 3) return "bg-orange-100 text-orange-800 border-orange-200"; // Bronze
+    if (rank === 1) return "bg-yellow-100 text-yellow-700 border-yellow-200"; 
+    if (rank === 2) return "bg-gray-200 text-gray-700 border-gray-300"; 
+    if (rank === 3) return "bg-orange-100 text-orange-800 border-orange-200"; 
     return "bg-gray-50 text-gray-500 border-gray-100";
   };
 
@@ -85,7 +121,6 @@ export default function LeaderboardPage() {
 
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           
-          {/* Header Area */}
           <div className="p-6 md:p-8 bg-gray-900 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <Link href="/" className="text-gray-400 hover:text-white text-sm font-medium mb-2 inline-block transition-colors">
@@ -95,22 +130,56 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-2 justify-center">
-            {['today', 'week', 'month', 'year', 'all-time'].map(f => (
-              <button 
-                key={f} 
-                onClick={() => setBoardFilter(f)} 
-                className={`px-6 py-2 rounded-full text-sm font-bold capitalize transition-colors shadow-sm ${
-                  boardFilter === f ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }`}
+          {/* Filters Bar */}
+          <div className="p-4 bg-gray-50 border-b border-gray-100 space-y-4">
+            
+            {/* Time Filters */}
+            <div className="flex flex-wrap gap-2 justify-center pb-4 border-b border-gray-200">
+              {['today', 'week', 'month', 'year', 'all-time'].map(f => (
+                <button 
+                  key={f} 
+                  onClick={() => setBoardFilter(f)} 
+                  className={`px-5 py-1.5 rounded-full text-sm font-bold capitalize transition-colors shadow-sm ${
+                    boardFilter === f ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  {f.replace('-', ' ')}
+                </button>
+              ))}
+            </div>
+
+            {/* Demographic Filters */}
+            <div className="flex flex-wrap gap-4 justify-center">
+              <select 
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
               >
-                {f.replace('-', ' ')}
-              </button>
-            ))}
+                <option value="all">All Genders</option>
+                <option value="Male">Male Only</option>
+                <option value="Female">Female Only</option>
+              </select>
+
+              <select 
+                value={ageFilter}
+                onChange={(e) => setAgeFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
+              >
+                <option value="all">All Ages</option>
+                <option value="over_40">Masters (40+) 🌟</option>
+              </select>
+
+              <select 
+                value={weightFilter}
+                onChange={(e) => setWeightFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
+              >
+                <option value="all">All Weights</option>
+                <option value="clydesdale">Clydesdale / Athena 🐴</option>
+              </select>
+            </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -125,7 +194,7 @@ export default function LeaderboardPage() {
                 {loading ? (
                   <tr><td colSpan="4" className="p-12 text-center text-gray-400">Loading times...</td></tr>
                 ) : leaderboard.length === 0 ? (
-                  <tr><td colSpan="4" className="p-12 text-center text-gray-400">No sprints found for this time period.</td></tr>
+                  <tr><td colSpan="4" className="p-12 text-center text-gray-400">No sprints found for these categories.</td></tr>
                 ) : (
                   leaderboard.map((sprint, index) => {
                     const actualRank = (currentPage - 1) * PAGE_SIZE + index + 1;
@@ -155,7 +224,6 @@ export default function LeaderboardPage() {
             </table>
           </div>
 
-          {/* Pagination Controls */}
           <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-sm">
             <button 
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
