@@ -22,12 +22,10 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  // INDUSTRY STANDARD: Force the output to exactly 256x256 pixels
   const TARGET_SIZE = 256;
   canvas.width = TARGET_SIZE;
   canvas.height = TARGET_SIZE;
 
-  // Draw the cropped area, but squeeze/expand it into the 256x256 box
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -41,7 +39,6 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   );
 
   return new Promise((resolve) => {
-    // Compress to a web-friendly JPEG at 80% quality
     canvas.toBlob((file) => resolve(file), 'image/jpeg', 0.8);
   });
 };
@@ -148,7 +145,6 @@ export default function ProfilePage() {
       setAvatarHistory((prev) => [...prev, avatarUrl]);
     }
     const seed = Math.random().toString(36).substring(7);
-    // BUMPED TO VERSION 10.x TO FIX THE 404 QUESTION MARK ERROR
     const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb`;
     setAvatarUrl(newAvatar);
   };
@@ -203,18 +199,18 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL - Reverted to unbreakable inline styles */}
+      {/* THE CROPPER MODAL (DYNAMIC VIEWPORT HEIGHT VERSION) */}
       {isCropping && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: '#000000',
-          zIndex: 999999,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col h-[100dvh] touch-none">
           
-          <div style={{ position: 'relative', flex: 1, width: '100%' }}>
+          {/* Header - Fixed to top */}
+          <div className="shrink-0 p-4 pt-12 text-white text-center z-10">
+            <h3 className="font-bold text-lg">Crop Your Avatar</h3>
+            <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
+          </div>
+          
+          {/* Cropper Container - Flex-1 takes exactly the remaining safe space */}
+          <div className="flex-1 relative w-full overflow-hidden">
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -228,19 +224,10 @@ export default function ProfilePage() {
             />
           </div>
           
-          <div style={{
-            backgroundColor: '#ffffff',
-            padding: '24px',
-            paddingBottom: '40px',
-            borderTopLeftRadius: '24px',
-            borderTopRightRadius: '24px',
-            position: 'relative',
-            zIndex: 9999999,
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
-          }}>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6b7280' }}>Zoom</span>
+          {/* Controls - Fixed to bottom */}
+          <div className="shrink-0 bg-white rounded-t-3xl p-6 pb-10 z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
+            <div className="flex items-center gap-4 mb-6">
+              <span className="text-sm font-bold text-gray-500">Zoom</span>
               <input
                 type="range"
                 value={zoom}
@@ -248,40 +235,20 @@ export default function ProfilePage() {
                 max={3}
                 step={0.1}
                 onChange={(e) => setZoom(e.target.value)}
-                style={{ width: '100%', cursor: 'pointer' }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
               />
             </div>
             
-            <div style={{ display: 'flex', gap: '16px' }}>
+            <div className="flex gap-4">
               <button 
                 onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                style={{
-                  flex: 1,
-                  backgroundColor: '#f3f4f6',
-                  color: '#374151',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-base"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleUploadCrop} 
-                style={{
-                  flex: 1,
-                  backgroundColor: '#000000',
-                  color: '#ffffff',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                className="flex-1 bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-base"
               >
                 Save Crop
               </button>
