@@ -169,11 +169,11 @@ export default function ProfilePage() {
       setAvatarHistory((prev) => [...prev, avatarUrl]);
     }
     const seed = Math.random().toString(36).substring(7);
-    
-    // Back to 10.x, back to Critters, and no background parameter!
-    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}`;
+    // Explicitly declaring transparent background!
+    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=transparent`;
     setAvatarUrl(newAvatar);
   };
+
 
   const undoAvatar = () => {
     if (avatarHistory.length > 0) {
