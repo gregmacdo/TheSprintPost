@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AuthHeader from '../../components/AuthHeader';
 import Cropper from 'react-easy-crop';
 
-// --- CANVAS HELPER FUNCTION TO CROP THE IMAGE ---
+// --- CANVAS HELPER FUNCTION TO CROP & RESIZE THE IMAGE ---
 const createImage = (url) =>
   new Promise((resolve, reject) => {
     const image = new Image();
@@ -22,9 +22,12 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  // INDUSTRY STANDARD: Force the output to exactly 256x256 pixels
+  const TARGET_SIZE = 256;
+  canvas.width = TARGET_SIZE;
+  canvas.height = TARGET_SIZE;
 
+  // Draw the cropped area, but squeeze/expand it into the 256x256 box
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -33,12 +36,13 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    TARGET_SIZE,
+    TARGET_SIZE
   );
 
   return new Promise((resolve) => {
-    canvas.toBlob((file) => resolve(file), 'image/jpeg');
+    // Compress to a web-friendly JPEG at 80% quality to save database space
+    canvas.toBlob((file) => resolve(file), 'image/jpeg', 0.8);
   });
 };
 // ------------------------------------------------
@@ -55,6 +59,9 @@ export default function ProfilePage() {
   const [gender, setGender] = useState('Prefer not to say');
   const [isOver40, setIsOver40] = useState(false);
   const [isClydesdale, setIsClydesdale] = useState(false);
+  
+  // Track both the currently saved avatar and the one we are previewing
+  const [originalAvatar, setOriginalAvatar] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   // Cropper State
@@ -80,6 +87,8 @@ export default function ProfilePage() {
       setGender(meta.gender || 'Prefer not to say');
       setIsOver40(meta.is_over_40 || false);
       setIsClydesdale(meta.is_clydesdale || false);
+      
+      setOriginalAvatar(meta.avatar_url || null);
       setAvatarUrl(meta.avatar_url || null);
       
       setLoading(false);
@@ -132,6 +141,13 @@ export default function ProfilePage() {
     }
   };
 
+  // Uses the industry-standard DiceBear API to pull a random avatar
+  const generateRandomAvatar = () => {
+    const seed = Math.random().toString(36).substring(7);
+    const newAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&backgroundColor=e5e7eb`;
+    setAvatarUrl(newAvatar);
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -161,6 +177,7 @@ export default function ProfilePage() {
       athlete_avatar: avatarUrl
     }).eq('user_id', user.id);
 
+    setOriginalAvatar(avatarUrl); // Reset the original avatar to hide the preview
     setMessage('Profile updated successfully! All your past sprints have been updated.');
     setUser(data.user);
     setSaving(false);
@@ -171,19 +188,18 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL - Hardcoded Inline Styles */}
+      {/* THE CROPPER MODAL (GRID VERSION) */}
       {isCropping && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: '#000000',
-          zIndex: 999999,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          
-          {/* Top Half: Cropper */}
-          <div style={{ position: 'relative', flex: 1, width: '100%' }}>
+        <div 
+          className="fixed inset-0 z-50 bg-black touch-none grid" 
+          style={{ gridTemplateRows: '1fr auto' }}
+        >
+          <div className="relative w-full h-full overflow-hidden">
+            <div className="absolute top-0 inset-x-0 pt-12 p-4 z-10 bg-gradient-to-b from-black/80 to-transparent text-white text-center pointer-events-none">
+              <h3 className="font-bold text-lg">Crop Your Avatar</h3>
+              <p className="text-xs text-gray-300 mt-1">Pinch to zoom, drag to move.</p>
+            </div>
+            
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -197,21 +213,9 @@ export default function ProfilePage() {
             />
           </div>
           
-          {/* Bottom Half: Controls */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            padding: '24px',
-            paddingBottom: '40px', // Extra padding for iPhone home bar
-            borderTopLeftRadius: '24px',
-            borderTopRightRadius: '24px',
-            position: 'relative',
-            zIndex: 9999999,
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
-          }}>
-            
-            {/* Zoom Slider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6b7280' }}>Zoom</span>
+          <div className="relative z-20 bg-white p-6 pb-10 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
+            <div className="flex items-center gap-4 mb-6">
+              <span className="text-sm font-bold text-gray-500">Zoom</span>
               <input
                 type="range"
                 value={zoom}
@@ -219,41 +223,20 @@ export default function ProfilePage() {
                 max={3}
                 step={0.1}
                 onChange={(e) => setZoom(e.target.value)}
-                style={{ width: '100%', cursor: 'pointer' }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
               />
             </div>
             
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '16px' }}>
+            <div className="flex gap-4">
               <button 
                 onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                style={{
-                  flex: 1,
-                  backgroundColor: '#f3f4f6',
-                  color: '#374151',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-base"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleUploadCrop} 
-                style={{
-                  flex: 1,
-                  backgroundColor: '#000000',
-                  color: '#ffffff',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                className="flex-1 bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-base"
               >
                 Save Crop
               </button>
@@ -262,6 +245,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* --- MAIN PAGE CONTENT --- */}
       <div className="max-w-3xl mx-auto space-y-8">
         <AuthHeader />
 
@@ -283,22 +267,37 @@ export default function ProfilePage() {
             <form onSubmit={handleSaveProfile} className="space-y-8">
               
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
-                <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-3xl">👤</span>
-                  )}
-                </div>
+                
+                {/* Only display the preview if it is different from the currently saved avatar */}
+                {avatarUrl && avatarUrl !== originalAvatar && (
+                  <div className="w-20 h-20 rounded-full bg-gray-200 border-2 border-gray-100 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
+                    <img src={avatarUrl} alt="New Avatar Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                
                 <div className="w-full">
-                  <label className="block text-sm font-bold mb-2">Profile Picture</label>
+                  <label className="block text-sm font-bold mb-2">Change Profile Picture</label>
                   <input 
                     type="file" 
                     accept="image/*"
                     onChange={onFileChange}
                     className="block w-full max-w-xs mx-auto sm:mx-0 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
                   />
-                  <p className="text-xs text-gray-500 mt-2">Will be cropped into a circle automatically.</p>
+                  
+                  <div className="mt-4 flex items-center gap-3 justify-center sm:justify-start">
+                    <span className="text-sm text-gray-400 font-medium">or</span>
+                    <button 
+                      type="button" 
+                      onClick={generateRandomAvatar}
+                      className="text-sm bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-full font-bold transition-colors"
+                    >
+                      🎲 Generate Random
+                    </button>
+                  </div>
+                  
+                  {avatarUrl !== originalAvatar && (
+                    <p className="text-xs text-orange-600 font-bold mt-4">Previewing new avatar. Don't forget to save!</p>
+                  )}
                 </div>
               </div>
 
