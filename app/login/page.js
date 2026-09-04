@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,16 +20,22 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        // Register a new user
-        const { error } = await supabase.auth.signUp({ email, password });
+        if (!displayName.trim()) throw new Error("Display name is required for sign up.");
+        
+        // Register new user and save display name in their metadata
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: { display_name: displayName.trim() }
+          }
+        });
         if (error) throw error;
       } else {
-        // Log in an existing user
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
       
-      // If successful, send them back to the homepage for now
       router.push('/');
       router.refresh();
     } catch (err) {
@@ -39,19 +46,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
         <h2 className="text-2xl font-bold text-center mb-6 text-black">
           {isSignUp ? 'Create an Account' : 'Welcome Back'}
         </h2>
         
         {error && (
-          <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
             {error}
           </div>
         )}
 
         <form onSubmit={handleAuth} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="e.g. SpeedDemon99"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-black"
+                required={isSignUp}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
@@ -84,10 +104,7 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center text-sm text-gray-500">
           {isSignUp ? 'Already have an account?' : 'Need an account?'}
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="ml-1 text-black font-semibold hover:underline"
-          >
+          <button onClick={() => { setIsSignUp(!isSignUp); setError(null); }} className="ml-1 text-black font-semibold hover:underline">
             {isSignUp ? 'Log in' : 'Sign up'}
           </button>
         </div>
