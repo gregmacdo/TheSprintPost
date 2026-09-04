@@ -5,14 +5,16 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthHeader from '../components/AuthHeader';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// THE FIX: This forces the chart to ONLY render on the client browser!
+const ProgressionChart = dynamic(() => import('../components/ProgressionChart'), { ssr: false });
 
 export default function MainPage() {
   const router = useRouter();
   
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false); 
   
   const [recentGlobal, setRecentGlobal] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -32,7 +34,6 @@ export default function MainPage() {
   const [suggestedAnon, setSuggestedAnon] = useState({});
 
   useEffect(() => {
-    setMounted(true); 
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
@@ -127,7 +128,7 @@ export default function MainPage() {
     return [...filtered].reverse().map((sprint, index) => ({
       name: `Run ${index + 1}`,
       time: Number(sprint.time_seconds) || 0,
-      fullDate: formatDateTime(sprint.created_at) // Stored for tooltip
+      fullDate: formatDateTime(sprint.created_at) 
     }));
   };
 
@@ -214,8 +215,8 @@ export default function MainPage() {
                 </div>
               </div>
 
-              {/* CHART SECTION: Fixed Height Enforcement */}
-              <div className="lg:col-span-2">
+              {/* DYNAMIC CHART RENDERED HERE */}
+              <div className="lg:col-span-2 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">My Progression</h3>
                   <div className="flex bg-gray-100 rounded-lg p-1">
@@ -228,21 +229,8 @@ export default function MainPage() {
                 </div>
                 
                 {chartData.length > 0 ? (
-                  <div className="w-full h-[300px] mt-4">
-                    {mounted && (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
-                          <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                          <YAxis domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                          <Tooltip 
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                            formatter={(value) => [`${value}s`, 'Time']} 
-                            labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
-                          />
-                          <Line type="monotone" dataKey="time" stroke="#000" strokeWidth={3} dot={{ r: 4, fill: '#000' }} activeDot={{ r: 6 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
+                  <div className="w-full h-[300px] mt-4 relative">
+                    <ProgressionChart data={chartData} />
                   </div>
                 ) : (
                   <div className="h-[300px] w-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
