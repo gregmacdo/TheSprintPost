@@ -348,12 +348,14 @@ export default function ProfilePage() {
             <form onSubmit={handleSaveProfile} className="space-y-8">
               
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
-                
                 {avatarUrl && avatarUrl !== originalAvatar && (
-                  <div className="w-24 h-24 rounded-full bg-transparent border border-gray-200 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
-                    <img src={avatarUrl} alt="New Avatar Preview" className="w-full h-full object-cover" />
-                  </div>
+                  <img 
+                    src={avatarUrl} 
+                    alt="New Avatar Preview" 
+                    style={{ width: '96px', height: '96px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #e5e7eb' }} 
+                  />
                 )}
+
                 
                 <div className="w-full">
                   <label className="block text-sm font-bold mb-2">Change Profile Picture</label>
