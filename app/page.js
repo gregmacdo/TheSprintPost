@@ -10,54 +10,40 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 export default function MainPage() {
   const router = useRouter();
   
-  // App State
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false); // FIXED CHART HYDRATION
+  const [mounted, setMounted] = useState(false); 
   
-  // Data State
   const [recentGlobal, setRecentGlobal] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [mySprints, setMySprints] = useState([]);
   
-  // Filters
   const [boardFilter, setBoardFilter] = useState('all-time');
   const [chartFilter, setChartFilter] = useState('month');
 
-  // Claiming State
   const [manualPhrase, setManualPhrase] = useState('');
   const [isAnonymousManual, setIsAnonymousManual] = useState(false);
   const [claimingId, setClaimingId] = useState(null);
   const [claimPhrase, setClaimPhrase] = useState('');
   const [isAnonymousInline, setIsAnonymousInline] = useState(false);
 
-  // Smart Claiming State
   const [isSmartClaimOpen, setIsSmartClaimOpen] = useState(false);
   const [suggestedSprints, setSuggestedSprints] = useState([]);
   const [suggestedAnon, setSuggestedAnon] = useState({});
 
   useEffect(() => {
-    setMounted(true); // Tells Recharts it's safe to draw now
-    
+    setMounted(true); 
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
-        const { data: myData } = await supabase
-          .from('sprints')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false });
+        const { data: myData } = await supabase.from('sprints').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
         setMySprints(myData || []);
       }
 
-      const { data: recentData } = await supabase
-        .from('sprints')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const { data: recentData } = await supabase.from('sprints').select('*').order('created_at', { ascending: false }).limit(10);
       setRecentGlobal(recentData || []);
 
       let query = supabase.from('sprints').select('*').order('time_seconds', { ascending: true }).limit(10);
@@ -76,16 +62,8 @@ export default function MainPage() {
     fetchData();
   }, [boardFilter]); 
 
-  // --- HELPER FUNCTIONS ---
-
-  // Standardizes Date/Time with NO leading zeroes on hours
   const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: 'numeric', // 'numeric' prevents the leading zero (1:35 PM instead of 01:35 PM)
-      minute: '2-digit'
-    });
+    return new Date(dateString).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
 
   const renderAthleteName = (sprint) => {
@@ -94,22 +72,18 @@ export default function MainPage() {
     return <span className="text-black font-bold">{sprint.display_name}</span>;
   };
 
-  // --- CLAIM & UNCLAIM LOGIC ---
   const processClaim = async (sprintId, phraseToTest, isAnon) => {
     const cleanPhrase = phraseToTest.toLowerCase().trim();
     const athleteName = user.user_metadata?.display_name || 'Runner';
-    
     let query = supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('phrase', cleanPhrase).eq('is_claimed', false);
     if (sprintId) query = query.eq('id', sprintId);
 
     const { data } = await query.select();
-
     if (data && data.length > 0) {
       const claimedSprint = data[0];
       const sprintTime = new Date(claimedSprint.created_at);
       const windowStart = new Date(sprintTime.getTime() - 60 * 60 * 1000).toISOString();
       const windowEnd = new Date(sprintTime.getTime() + 60 * 60 * 1000).toISOString();
-
       const { data: nearbyData } = await supabase.from('sprints').select('*').eq('is_claimed', false).gte('created_at', windowStart).lte('created_at', windowEnd).neq('id', claimedSprint.id);
 
       if (nearbyData && nearbyData.length > 0) {
@@ -119,33 +93,26 @@ export default function MainPage() {
         alert('Sprint claimed successfully!');
         window.location.reload(); 
       }
-    } else {
-      alert('Incorrect phrase or sprint already claimed.');
-    }
+    } else { alert('Incorrect phrase or sprint already claimed.'); }
   };
 
   const submitSuggestedClaim = async (sprintId) => {
     const isAnon = suggestedAnon[sprintId] || false;
     const athleteName = user.user_metadata?.display_name || 'Runner';
-
     const { data } = await supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('id', sprintId).eq('is_claimed', false).select();
     if (data && data.length > 0) {
       const remaining = suggestedSprints.filter(s => s.id !== sprintId);
       setSuggestedSprints(remaining);
       if (remaining.length === 0) window.location.reload();
-    } else {
-      alert('Could not claim this sprint. Someone else may have claimed it!');
-    }
+    } else { alert('Could not claim this sprint.'); }
   };
 
   const handleUnclaim = async (sprintId) => {
-    if (!confirm("Are you sure you want to un-claim this sprint? It will become public and require the 3-word phrase to claim again.")) return;
+    if (!confirm("Are you sure you want to un-claim this sprint?")) return;
     const { error } = await supabase.from('sprints').update({ is_claimed: false, user_id: null, display_name: null, is_anonymous: false }).eq('id', sprintId).eq('user_id', user.id); 
     if (!error) window.location.reload();
-    else alert("Something went wrong trying to unclaim.");
   };
 
-  // Chart Data Processing
   const getFilteredChartData = () => {
     const now = new Date().getTime();
     const filtered = mySprints.filter(sprint => {
@@ -160,7 +127,7 @@ export default function MainPage() {
     return [...filtered].reverse().map((sprint, index) => ({
       name: `Run ${index + 1}`,
       time: Number(sprint.time_seconds) || 0,
-      date: new Date(sprint.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      fullDate: formatDateTime(sprint.created_at) // Stored for tooltip
     }));
   };
 
@@ -171,12 +138,10 @@ export default function MainPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* SMART CLAIM MODAL OVERLAY */}
       {isSmartClaimOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <h2 className="text-2xl font-bold mb-2">Did you run these too? ⚡</h2>
-            <p className="text-gray-500 mb-6">We found other unclaimed sprints recorded around the same time. Claim your whole session!</p>
             <div className="space-y-4 mb-8">
               {suggestedSprints.map(sprint => (
                 <div key={sprint.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -202,7 +167,6 @@ export default function MainPage() {
       <div className="max-w-7xl mx-auto space-y-12">
         <AuthHeader />
 
-        {/* --- SECTION 1: PERSONAL DASHBOARD --- */}
         {user && (
           <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 md:p-8 bg-gray-900 text-white flex justify-between items-center">
@@ -212,7 +176,6 @@ export default function MainPage() {
             <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
               <div className="lg:col-span-1 flex flex-col gap-8">
                 
-                {/* Claim Box */}
                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                   <h3 className="font-bold text-lg mb-4">Claim by Phrase</h3>
                   <form onSubmit={(e) => { e.preventDefault(); processClaim(null, manualPhrase, isAnonymousManual); }}>
@@ -225,7 +188,6 @@ export default function MainPage() {
                   </form>
                 </div>
 
-                {/* My Recent Sprints List */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-lg">My Latest Sprints</h3>
@@ -252,8 +214,8 @@ export default function MainPage() {
                 </div>
               </div>
 
-              {/* Right Column: The Chart */}
-              <div className="lg:col-span-2 flex flex-col">
+              {/* CHART SECTION: Fixed Height Enforcement */}
+              <div className="lg:col-span-2">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">My Progression</h3>
                   <div className="flex bg-gray-100 rounded-lg p-1">
@@ -266,21 +228,24 @@ export default function MainPage() {
                 </div>
                 
                 {chartData.length > 0 ? (
-                  <div className="flex-grow min-h-[300px] w-full bg-white">
-                    {/* Only render chart after client-side hydration to prevent crashes */}
+                  <div className="w-full h-[300px] mt-4">
                     {mounted && (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
-                          <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                          <YAxis fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}s`, 'Time']} />
+                          <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
+                          <YAxis domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                            formatter={(value) => [`${value}s`, 'Time']} 
+                            labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
+                          />
                           <Line type="monotone" dataKey="time" stroke="#000" strokeWidth={3} dot={{ r: 4, fill: '#000' }} activeDot={{ r: 6 }} />
                         </LineChart>
                       </ResponsiveContainer>
                     )}
                   </div>
                 ) : (
-                  <div className="flex-grow min-h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <div className="h-[300px] w-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                     <span className="text-2xl mb-2">🏃</span>
                     <p className="text-sm">Log some sprints to see your progress!</p>
                   </div>
@@ -290,16 +255,14 @@ export default function MainPage() {
           </section>
         )}
 
-        {/* --- SECTION 2: GLOBAL ARENA --- */}
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            {/* Recent Global Sprints */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
               <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center flex-wrap gap-2">
                 <h3 className="font-bold whitespace-nowrap">Live Feed</h3>
-                <Link href="/recent-sprints" className="text-sm text-blue-600 font-medium hover:underline">
-                  See sprints on a specific date or time range &rarr;
+                <Link href="/sprints-by-date" className="text-sm text-blue-600 font-medium hover:underline">
+                  Find sprints by date &rarr;
                 </Link>
               </div>
               <div className="divide-y divide-gray-50">
@@ -336,7 +299,6 @@ export default function MainPage() {
               </div>
             </div>
 
-            {/* The Leaderboard */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
               <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="font-bold">Leaderboard</h3>
