@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import AuthHeader from '../components/AuthHeader';
 
 // Forces Vercel to dynamically fetch fresh data on every page load
 export const dynamic = 'force-dynamic';
@@ -48,10 +49,7 @@ export default async function LeaderboardPage(props) {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
       <div className="max-w-3xl mx-auto">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">⚡ The Sprint Post</h1>
-          <p className="text-gray-500">Run first. Claim later.</p>
-        </header>
+        <AuthHeader />
 
         {/* Filter Tabs */}
         <div className="flex overflow-x-auto pb-2 mb-6 gap-2 justify-center">
