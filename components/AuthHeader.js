@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function AuthHeader() {
@@ -28,7 +28,7 @@ export default function AuthHeader() {
   };
 
   return (
-    <header className="mb-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <header className="mb-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
       <div className="text-center sm:text-left mb-4 sm:mb-0">
         <Link href="/" className="hover:opacity-80 transition-opacity">
           <h1 className="text-3xl font-extrabold tracking-tight mb-1 text-black">⚡ The Sprint Post</h1>
@@ -38,13 +38,16 @@ export default function AuthHeader() {
       
       <div>
         {user ? (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             <Link 
               href="/profile"
-              className="text-sm text-gray-700 font-medium hover:text-black hover:underline hidden md:flex items-center gap-2"
+              className="text-sm text-gray-700 font-bold hover:text-black hover:underline hidden md:flex items-center gap-3"
             >
+              {/* DISPLAYED MUCH LARGER IN HEADER */}
               {user.user_metadata?.avatar_url && (
-                <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm flex-shrink-0 bg-gray-50">
+                  <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
               )}
               {user.user_metadata?.display_name || user.email}
             </Link>
