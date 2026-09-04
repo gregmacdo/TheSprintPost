@@ -75,7 +75,12 @@ export default function MainPage() {
     return (
       <div className="flex items-center gap-2">
         {sprint.athlete_avatar && (
-          <img src={sprint.athlete_avatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+          {/* SIZED DOWN TO w-5 h-5 (20px) on mobile, w-6 h-6 (24px) on desktop! */}
+          <img 
+            src={sprint.athlete_avatar} 
+            alt="Avatar" 
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-gray-200 flex-shrink-0" 
+          />
         )}
         <span className="text-black font-bold flex items-center gap-1">
           {sprint.display_name}
