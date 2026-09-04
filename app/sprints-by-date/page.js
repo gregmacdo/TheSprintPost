@@ -12,7 +12,6 @@ export default function SprintsByDatePage() {
   const [sprints, setSprints] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Initialize date picker to local "Today"
   const getTodayLocal = () => {
     const today = new Date();
     const offset = today.getTimezoneOffset() * 60000;
@@ -21,7 +20,6 @@ export default function SprintsByDatePage() {
   
   const [selectedDate, setSelectedDate] = useState(getTodayLocal());
 
-  // Claiming State
   const [claimingId, setClaimingId] = useState(null);
   const [claimPhrase, setClaimPhrase] = useState('');
   const [isAnonymousInline, setIsAnonymousInline] = useState(false);
@@ -35,7 +33,6 @@ export default function SprintsByDatePage() {
 
       if (!selectedDate) return;
 
-      // Create start and end timestamps for the selected calendar day
       const startOfDay = new Date(`${selectedDate}T00:00:00`).toISOString();
       const endOfDay = new Date(`${selectedDate}T23:59:59.999`).toISOString();
 
@@ -72,11 +69,23 @@ export default function SprintsByDatePage() {
 
   const processClaim = async (sprintId, phraseToTest, isAnon) => {
     const cleanPhrase = phraseToTest.toLowerCase().trim();
-    const athleteName = user.user_metadata?.display_name || 'Runner';
+    const meta = user.user_metadata || {};
+    const athleteName = meta.display_name || 'Runner';
+    
+    const updatePayload = {
+      is_claimed: true,
+      user_id: user.id,
+      display_name: athleteName,
+      is_anonymous: isAnon,
+      athlete_gender: meta.gender || 'Prefer not to say',
+      athlete_over_40: meta.is_over_40 || false,
+      athlete_clydesdale: meta.is_clydesdale || false,
+      athlete_avatar: meta.avatar_url || null
+    };
     
     const { data } = await supabase
       .from('sprints')
-      .update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon })
+      .update(updatePayload)
       .eq('id', sprintId)
       .eq('phrase', cleanPhrase)
       .eq('is_claimed', false)
@@ -93,7 +102,19 @@ export default function SprintsByDatePage() {
   const renderAthleteName = (sprint) => {
     if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
     if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    return <span className="text-black font-bold">{sprint.display_name}</span>;
+    
+    return (
+      <div className="flex items-center gap-2">
+        {sprint.athlete_avatar && (
+          <img src={sprint.athlete_avatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+        )}
+        <span className="text-black font-bold flex items-center gap-1">
+          {sprint.display_name}
+          {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
+          {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -112,7 +133,6 @@ export default function SprintsByDatePage() {
               <h2 className="text-2xl font-bold">Find Sprints by Date</h2>
             </div>
             
-            {/* The Calendar Picker */}
             <div className="bg-white text-black p-1 rounded-lg shadow-inner">
               <input 
                 type="date" 
