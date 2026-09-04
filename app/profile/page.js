@@ -41,7 +41,7 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   );
 
   return new Promise((resolve) => {
-    // Compress to a web-friendly JPEG at 80% quality to save database space
+    // Compress to a web-friendly JPEG at 80% quality
     canvas.toBlob((file) => resolve(file), 'image/jpeg', 0.8);
   });
 };
@@ -60,11 +60,8 @@ export default function ProfilePage() {
   const [isOver40, setIsOver40] = useState(false);
   const [isClydesdale, setIsClydesdale] = useState(false);
   
-  // Track both the currently saved avatar and the one we are previewing
   const [originalAvatar, setOriginalAvatar] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
-  
-  // Track history so users can "go back" if they accidentally skip a good random avatar
   const [avatarHistory, setAvatarHistory] = useState([]);
 
   // Cropper State
@@ -134,7 +131,6 @@ export default function ProfilePage() {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Save the current avatar to history before switching to the newly cropped one
       if (avatarUrl) setAvatarHistory((prev) => [...prev, avatarUrl]);
       
       setAvatarUrl(publicUrl);
@@ -147,25 +143,22 @@ export default function ProfilePage() {
     }
   };
 
-  // Uses the industry-standard DiceBear API to pull a random "critter" animal avatar
   const generateRandomAvatar = () => {
-    // Before generating a new one, save the current one to history
     if (avatarUrl) {
       setAvatarHistory((prev) => [...prev, avatarUrl]);
     }
-    
     const seed = Math.random().toString(36).substring(7);
-    const newAvatar = `https://api.dicebear.com/9.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb`;
+    // BUMPED TO VERSION 10.x TO FIX THE 404 QUESTION MARK ERROR
+    const newAvatar = `https://api.dicebear.com/10.x/critters/svg?seed=${seed}&backgroundColor=e5e7eb`;
     setAvatarUrl(newAvatar);
   };
 
-  // Pops the last avatar out of history and sets it back as the current avatar
   const undoAvatar = () => {
     if (avatarHistory.length > 0) {
       const newHistory = [...avatarHistory];
-      const previousAvatar = newHistory.pop(); // grab the last one
-      setAvatarHistory(newHistory); // update history removing the last one
-      setAvatarUrl(previousAvatar); // set it back as active
+      const previousAvatar = newHistory.pop();
+      setAvatarHistory(newHistory); 
+      setAvatarUrl(previousAvatar); 
     }
   };
 
@@ -199,7 +192,7 @@ export default function ProfilePage() {
     }).eq('user_id', user.id);
 
     setOriginalAvatar(avatarUrl); 
-    setAvatarHistory([]); // Clear the history once saved
+    setAvatarHistory([]); 
     setMessage('Profile updated successfully! All your past sprints have been updated.');
     setUser(data.user);
     setSaving(false);
@@ -210,18 +203,18 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL (GRID VERSION) */}
+      {/* THE CROPPER MODAL - Reverted to unbreakable inline styles */}
       {isCropping && (
-        <div 
-          className="fixed inset-0 z-50 bg-black touch-none grid" 
-          style={{ gridTemplateRows: '1fr auto' }}
-        >
-          <div className="relative w-full h-full overflow-hidden">
-            <div className="absolute top-0 inset-x-0 pt-12 p-4 z-10 bg-gradient-to-b from-black/80 to-transparent text-white text-center pointer-events-none">
-              <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-              <p className="text-xs text-gray-300 mt-1">Pinch to zoom, drag to move.</p>
-            </div>
-            
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: '#000000',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          
+          <div style={{ position: 'relative', flex: 1, width: '100%' }}>
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -235,9 +228,19 @@ export default function ProfilePage() {
             />
           </div>
           
-          <div className="relative z-20 bg-white p-6 pb-10 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-sm font-bold text-gray-500">Zoom</span>
+          <div style={{
+            backgroundColor: '#ffffff',
+            padding: '24px',
+            paddingBottom: '40px',
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            position: 'relative',
+            zIndex: 9999999,
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
+          }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6b7280' }}>Zoom</span>
               <input
                 type="range"
                 value={zoom}
@@ -245,20 +248,40 @@ export default function ProfilePage() {
                 max={3}
                 step={0.1}
                 onChange={(e) => setZoom(e.target.value)}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+                style={{ width: '100%', cursor: 'pointer' }}
               />
             </div>
             
-            <div className="flex gap-4">
+            <div style={{ display: 'flex', gap: '16px' }}>
               <button 
                 onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-base"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
               <button 
                 onClick={handleUploadCrop} 
-                className="flex-1 bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-base"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Save Crop
               </button>
@@ -290,7 +313,6 @@ export default function ProfilePage() {
               
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
                 
-                {/* Only display the preview if it is different from the currently saved avatar */}
                 {avatarUrl && avatarUrl !== originalAvatar && (
                   <div className="w-20 h-20 rounded-full bg-gray-200 border-2 border-gray-100 shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                     <img src={avatarUrl} alt="New Avatar Preview" className="w-full h-full object-cover" />
@@ -309,7 +331,6 @@ export default function ProfilePage() {
                   <div className="mt-4 flex items-center gap-3 justify-center sm:justify-start flex-wrap">
                     <span className="text-sm text-gray-400 font-medium">or</span>
                     <div className="flex items-center gap-2">
-                      {/* Only show the undo button if there's actually history to undo */}
                       {avatarHistory.length > 0 && (
                         <button 
                           type="button" 
