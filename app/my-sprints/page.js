@@ -18,7 +18,6 @@ export default function MySprintsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        // Bounce them back to login if they aren't authenticated
         router.push('/login');
         return;
       }
@@ -39,6 +38,18 @@ export default function MySprintsPage() {
     fetchUserData();
   }, [router]);
 
+  // Formats date nicely and removes the leading zero on the hour
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: 'numeric', // 'numeric' prevents the leading zero (1:35 PM instead of 01:35 PM)
+      minute: '2-digit'
+    });
+  };
+
   const handleUnclaim = async (sprintId) => {
     if (!confirm("Are you sure you want to un-claim this sprint? It will become public and require the 3-word phrase to claim again.")) return;
 
@@ -51,11 +62,9 @@ export default function MySprintsPage() {
         is_anonymous: false
       })
       .eq('id', sprintId)
-      .eq('user_id', user.id); // Security check to ensure they own it
+      .eq('user_id', user.id); 
 
     if (!error) {
-      // Instead of refreshing the page, we dynamically remove it from the list
-      // so the UI feels instantly responsive!
       setMySprints(mySprints.filter(sprint => sprint.id !== sprintId));
     } else {
       alert("Something went wrong trying to unclaim.");
@@ -102,7 +111,7 @@ export default function MySprintsPage() {
                         {sprint.phrase.split('-').join(' ')}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {new Date(sprint.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
+                        {formatDateTime(sprint.created_at)} 
                         {sprint.is_anonymous && ' • (Anonymous)'}
                       </div>
                     </div>
