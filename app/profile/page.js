@@ -315,4 +315,26 @@ export default function ProfilePage() {
                     />
                     <div>
                       <span className="text-sm font-bold block">Clydesdale / Athena</span>
-                      <span className="text-xs text-gray-500">Male 200
+                      <span className="text-xs text-gray-500">Male 200+ lbs / Female 165+ lbs</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button 
+                  type="submit" 
+                  disabled={saving}
+                  className="bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm w-full sm:w-auto"
+                >
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  );
+}
