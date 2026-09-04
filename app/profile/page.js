@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -46,6 +47,7 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,24 @@ export default function ProfilePage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isCropping, setIsCropping] = useState(false);
 
+  // 1. Mount State (Needed for Portals)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 2. Lock Body Scroll when Cropper is open
+  useEffect(() => {
+    if (isCropping) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isCropping]);
+
+  // 3. Fetch User
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -199,18 +219,37 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL (DYNAMIC VIEWPORT HEIGHT VERSION) */}
-      {isCropping && (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col h-[100dvh] touch-none">
+      {/* 
+        THE REACT PORTAL CROPPER
+        This injects the cropper directly into the document body, completely 
+        escaping Next.js layouts, relative parents, and transform bugs.
+      */}
+      {isCropping && mounted && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: '#000000',
+          zIndex: 2147483647, // Maximum possible z-index
+          display: 'flex',
+          flexDirection: 'column',
+          touchAction: 'none'
+        }}>
           
-          {/* Header - Fixed to top */}
-          <div className="shrink-0 p-4 pt-12 text-white text-center z-10">
-            <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-            <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
+          {/* Header Block */}
+          <div style={{ 
+            padding: '16px', 
+            paddingTop: '48px', 
+            backgroundColor: '#111827', 
+            color: 'white', 
+            textAlign: 'center', 
+            flexShrink: 0 
+          }}>
+            <h3 style={{ fontWeight: 'bold', fontSize: '18px', margin: 0 }}>Crop Your Avatar</h3>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0 0' }}>Pinch to zoom, drag to move.</p>
           </div>
           
-          {/* Cropper Container - Flex-1 takes exactly the remaining safe space */}
-          <div className="flex-1 relative w-full overflow-hidden">
+          {/* Cropper Block */}
+          <div style={{ position: 'relative', flex: 1, width: '100%', overflow: 'hidden' }}>
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -224,10 +263,21 @@ export default function ProfilePage() {
             />
           </div>
           
-          {/* Controls - Fixed to bottom */}
-          <div className="shrink-0 bg-white rounded-t-3xl p-6 pb-10 z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-sm font-bold text-gray-500">Zoom</span>
+          {/* Controls Block */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            padding: '24px',
+            paddingBottom: '40px', // Extra space for iPhone home bar
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            flexShrink: 0,
+            boxShadow: '0 -10px 25px rgba(0,0,0,0.5)',
+            position: 'relative',
+            zIndex: 10
+          }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6b7280' }}>Zoom</span>
               <input
                 type="range"
                 value={zoom}
@@ -235,26 +285,47 @@ export default function ProfilePage() {
                 max={3}
                 step={0.1}
                 onChange={(e) => setZoom(e.target.value)}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+                style={{ width: '100%', cursor: 'pointer' }}
               />
             </div>
             
-            <div className="flex gap-4">
+            <div style={{ display: 'flex', gap: '16px' }}>
               <button 
                 onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-base"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
               <button 
                 onClick={handleUploadCrop} 
-                className="flex-1 bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-base"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Save Crop
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* --- MAIN PAGE CONTENT --- */}
