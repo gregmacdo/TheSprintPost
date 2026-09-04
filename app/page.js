@@ -13,6 +13,7 @@ export default function MainPage() {
   // App State
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false); // FIXED CHART HYDRATION
   
   // Data State
   const [recentGlobal, setRecentGlobal] = useState([]);
@@ -36,6 +37,8 @@ export default function MainPage() {
   const [suggestedAnon, setSuggestedAnon] = useState({});
 
   useEffect(() => {
+    setMounted(true); // Tells Recharts it's safe to draw now
+    
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
@@ -57,7 +60,7 @@ export default function MainPage() {
         .limit(10);
       setRecentGlobal(recentData || []);
 
-      let query = supabase.from('sprints').select('*').order('time_seconds', { ascending: true }).limit(10); // Capped at 10!
+      let query = supabase.from('sprints').select('*').order('time_seconds', { ascending: true }).limit(10);
       if (boardFilter !== 'all-time') {
         const pastDate = new Date();
         if (boardFilter === 'today') pastDate.setHours(pastDate.getHours() - 24);
@@ -73,23 +76,30 @@ export default function MainPage() {
     fetchData();
   }, [boardFilter]); 
 
-  // --- CLAIM & UNCLAIM LOGIC ---
+  // --- HELPER FUNCTIONS ---
 
+  // Standardizes Date/Time with NO leading zeroes on hours
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric', // 'numeric' prevents the leading zero (1:35 PM instead of 01:35 PM)
+      minute: '2-digit'
+    });
+  };
+
+  const renderAthleteName = (sprint) => {
+    if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
+    if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
+    return <span className="text-black font-bold">{sprint.display_name}</span>;
+  };
+
+  // --- CLAIM & UNCLAIM LOGIC ---
   const processClaim = async (sprintId, phraseToTest, isAnon) => {
     const cleanPhrase = phraseToTest.toLowerCase().trim();
     const athleteName = user.user_metadata?.display_name || 'Runner';
     
-    let query = supabase
-      .from('sprints')
-      .update({ 
-        is_claimed: true, 
-        user_id: user.id,
-        display_name: athleteName,
-        is_anonymous: isAnon
-      })
-      .eq('phrase', cleanPhrase)
-      .eq('is_claimed', false);
-
+    let query = supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('phrase', cleanPhrase).eq('is_claimed', false);
     if (sprintId) query = query.eq('id', sprintId);
 
     const { data } = await query.select();
@@ -100,13 +110,7 @@ export default function MainPage() {
       const windowStart = new Date(sprintTime.getTime() - 60 * 60 * 1000).toISOString();
       const windowEnd = new Date(sprintTime.getTime() + 60 * 60 * 1000).toISOString();
 
-      const { data: nearbyData } = await supabase
-        .from('sprints')
-        .select('*')
-        .eq('is_claimed', false)
-        .gte('created_at', windowStart)
-        .lte('created_at', windowEnd)
-        .neq('id', claimedSprint.id);
+      const { data: nearbyData } = await supabase.from('sprints').select('*').eq('is_claimed', false).gte('created_at', windowStart).lte('created_at', windowEnd).neq('id', claimedSprint.id);
 
       if (nearbyData && nearbyData.length > 0) {
         setSuggestedSprints(nearbyData);
@@ -124,18 +128,7 @@ export default function MainPage() {
     const isAnon = suggestedAnon[sprintId] || false;
     const athleteName = user.user_metadata?.display_name || 'Runner';
 
-    const { data } = await supabase
-      .from('sprints')
-      .update({ 
-        is_claimed: true, 
-        user_id: user.id,
-        display_name: athleteName,
-        is_anonymous: isAnon
-      })
-      .eq('id', sprintId)
-      .eq('is_claimed', false)
-      .select();
-
+    const { data } = await supabase.from('sprints').update({ is_claimed: true, user_id: user.id, display_name: athleteName, is_anonymous: isAnon }).eq('id', sprintId).eq('is_claimed', false).select();
     if (data && data.length > 0) {
       const remaining = suggestedSprints.filter(s => s.id !== sprintId);
       setSuggestedSprints(remaining);
@@ -147,36 +140,17 @@ export default function MainPage() {
 
   const handleUnclaim = async (sprintId) => {
     if (!confirm("Are you sure you want to un-claim this sprint? It will become public and require the 3-word phrase to claim again.")) return;
-
-    const { error } = await supabase
-      .from('sprints')
-      .update({ 
-        is_claimed: false,
-        user_id: null,
-        display_name: null,
-        is_anonymous: false
-      })
-      .eq('id', sprintId)
-      .eq('user_id', user.id); 
-
+    const { error } = await supabase.from('sprints').update({ is_claimed: false, user_id: null, display_name: null, is_anonymous: false }).eq('id', sprintId).eq('user_id', user.id); 
     if (!error) window.location.reload();
     else alert("Something went wrong trying to unclaim.");
   };
 
-  // --- RENDER HELPERS ---
-
-  const renderAthleteName = (sprint) => {
-    if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
-    if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    return <span className="text-black font-bold">{sprint.display_name}</span>;
-  };
-
-  // Chart Data Processing (Fixed date math!)
+  // Chart Data Processing
   const getFilteredChartData = () => {
-    const now = new Date().getTime(); // get exact milliseconds
+    const now = new Date().getTime();
     const filtered = mySprints.filter(sprint => {
       if (chartFilter === 'all-time') return true;
-      const date = new Date(sprint.created_at).getTime(); // exact milliseconds
+      const date = new Date(sprint.created_at).getTime();
       if (chartFilter === 'week') return (now - date) < 7 * 24 * 60 * 60 * 1000;
       if (chartFilter === 'month') return (now - date) < 30 * 24 * 60 * 60 * 1000;
       if (chartFilter === 'year') return (now - date) < 365 * 24 * 60 * 60 * 1000;
@@ -208,7 +182,7 @@ export default function MainPage() {
                 <div key={sprint.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <div className="font-mono text-2xl font-bold">{sprint.time_seconds.toFixed(2)}s</div>
-                    <div className="text-sm text-gray-500">{new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div className="text-sm text-gray-500">{formatDateTime(sprint.created_at)}</div>
                   </div>
                   <div className="flex items-center justify-between gap-4 w-full sm:w-auto">
                     <div className="flex items-center gap-2">
@@ -254,7 +228,7 @@ export default function MainPage() {
                 {/* My Recent Sprints List */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-lg">Latest Sprints</h3>
+                    <h3 className="font-bold text-lg">My Latest Sprints</h3>
                     <Link href="/my-sprints" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
                   </div>
                   {mySprints.length === 0 ? (
@@ -265,7 +239,7 @@ export default function MainPage() {
                         <div key={sprint.id} className="flex justify-between items-center border-b border-gray-100 pb-3">
                           <div>
                             <div className="font-bold capitalize text-black">{sprint.phrase.split('-').join(' ')}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{new Date(sprint.created_at).toLocaleDateString()} {sprint.is_anonymous && '(Anon)'}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{formatDateTime(sprint.created_at)} {sprint.is_anonymous && '(Anon)'}</div>
                           </div>
                           <div className="flex flex-col items-end">
                             <div className="font-mono text-lg font-bold">{sprint.time_seconds.toFixed(2)}s</div>
@@ -279,7 +253,7 @@ export default function MainPage() {
               </div>
 
               {/* Right Column: The Chart */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">My Progression</h3>
                   <div className="flex bg-gray-100 rounded-lg p-1">
@@ -292,18 +266,21 @@ export default function MainPage() {
                 </div>
                 
                 {chartData.length > 0 ? (
-                  <div className="w-full" style={{ minHeight: '300px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                        <YAxis fontSize={12} tickLine={false} axisLine={false} width={40} stroke="#9ca3af" />
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}s`, 'Time']} />
-                        <Line type="monotone" dataKey="time" stroke="#000" strokeWidth={3} dot={{ r: 4, fill: '#000' }} activeDot={{ r: 6 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="flex-grow min-h-[300px] w-full bg-white">
+                    {/* Only render chart after client-side hydration to prevent crashes */}
+                    {mounted && (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                          <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
+                          <YAxis fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}s`, 'Time']} />
+                          <Line type="monotone" dataKey="time" stroke="#000" strokeWidth={3} dot={{ r: 4, fill: '#000' }} activeDot={{ r: 6 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl" style={{ minHeight: '300px' }}>
+                  <div className="flex-grow min-h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                     <span className="text-2xl mb-2">🏃</span>
                     <p className="text-sm">Log some sprints to see your progress!</p>
                   </div>
@@ -319,9 +296,11 @@ export default function MainPage() {
             
             {/* Recent Global Sprints */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
-              <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="font-bold">Live Feed</h3>
-                <Link href="/recent-sprints" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
+              <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center flex-wrap gap-2">
+                <h3 className="font-bold whitespace-nowrap">Live Feed</h3>
+                <Link href="/recent-sprints" className="text-sm text-blue-600 font-medium hover:underline">
+                  See sprints on a specific date or time range &rarr;
+                </Link>
               </div>
               <div className="divide-y divide-gray-50">
                 {recentGlobal.map(sprint => (
@@ -329,7 +308,7 @@ export default function MainPage() {
                     <div className="flex justify-between items-center mb-1">
                       <div>
                         {renderAthleteName(sprint)}
-                        <div className="text-xs text-gray-400 mt-0.5">{new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{formatDateTime(sprint.created_at)}</div>
                       </div>
                       <div className="font-mono text-xl font-bold">{sprint.time_seconds.toFixed(2)}s</div>
                     </div>
@@ -382,7 +361,7 @@ export default function MainPage() {
                         <td className="p-4 text-center font-bold text-gray-400 w-12">{index + 1}</td>
                         <td className="p-4">
                           {renderAthleteName(sprint)}
-                          <div className="text-xs text-gray-400 mt-1">{new Date(sprint.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div className="text-xs text-gray-400 mt-1">{formatDateTime(sprint.created_at)}</div>
                         </td>
                         <td className="p-4 text-right font-mono text-lg font-bold">{sprint.time_seconds.toFixed(2)}s</td>
                       </tr>
