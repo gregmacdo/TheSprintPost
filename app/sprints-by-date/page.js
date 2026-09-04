@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthHeader from '../../components/AuthHeader';
+import AthleteBadge from '../../components/AthleteBadge';
 
 export default function SprintsByDatePage() {
   const router = useRouter();
@@ -99,24 +100,6 @@ export default function SprintsByDatePage() {
     }
   };
 
-  const renderAthleteName = (sprint) => {
-    if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
-    if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    
-    return (
-      <div className="flex items-center gap-2">
-        {sprint.athlete_avatar && (
-          <img src={sprint.athlete_avatar} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-gray-200" />
-        )}
-        <span className="text-black font-bold flex items-center gap-1">
-          {sprint.display_name}
-          {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
-          {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
-        </span>
-      </div>
-    );
-  };
-
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -157,7 +140,7 @@ export default function SprintsByDatePage() {
                   
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                      <div className="text-lg">{renderAthleteName(sprint)}</div>
+                      <AthleteBadge sprint={sprint} />
                       <div className="text-sm text-gray-500 mt-1">
                         {formatDateTime(sprint.created_at)}
                       </div>
