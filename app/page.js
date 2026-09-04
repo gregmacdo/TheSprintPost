@@ -57,7 +57,7 @@ export default function MainPage() {
         .limit(10);
       setRecentGlobal(recentData || []);
 
-      let query = supabase.from('sprints').select('*').order('time_seconds', { ascending: true }).limit(50);
+      let query = supabase.from('sprints').select('*').order('time_seconds', { ascending: true }).limit(10); // Capped at 10!
       if (boardFilter !== 'all-time') {
         const pastDate = new Date();
         if (boardFilter === 'today') pastDate.setHours(pastDate.getHours() - 24);
@@ -171,12 +171,12 @@ export default function MainPage() {
     return <span className="text-black font-bold">{sprint.display_name}</span>;
   };
 
-  // Chart Data Processing
+  // Chart Data Processing (Fixed date math!)
   const getFilteredChartData = () => {
-    const now = new Date();
+    const now = new Date().getTime(); // get exact milliseconds
     const filtered = mySprints.filter(sprint => {
       if (chartFilter === 'all-time') return true;
-      const date = new Date(sprint.created_at);
+      const date = new Date(sprint.created_at).getTime(); // exact milliseconds
       if (chartFilter === 'week') return (now - date) < 7 * 24 * 60 * 60 * 1000;
       if (chartFilter === 'month') return (now - date) < 30 * 24 * 60 * 60 * 1000;
       if (chartFilter === 'year') return (now - date) < 365 * 24 * 60 * 60 * 1000;
@@ -185,7 +185,7 @@ export default function MainPage() {
     
     return [...filtered].reverse().map((sprint, index) => ({
       name: `Run ${index + 1}`,
-      time: Number(sprint.time_seconds.toFixed(2)),
+      time: Number(sprint.time_seconds) || 0,
       date: new Date(sprint.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }));
   };
@@ -197,7 +197,7 @@ export default function MainPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* SMART CLAIM MODAL OVERLAY (Kept exactly the same) */}
+      {/* SMART CLAIM MODAL OVERLAY */}
       {isSmartClaimOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -236,7 +236,6 @@ export default function MainPage() {
             </div>
             
             <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
-              {/* Left Column: Claiming & My Sprints List */}
               <div className="lg:col-span-1 flex flex-col gap-8">
                 
                 {/* Claim Box */}
@@ -256,9 +255,7 @@ export default function MainPage() {
                 <div>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-lg">Latest Sprints</h3>
-                    {mySprints.length > 10 && (
-                      <Link href="/my-sprints" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
-                    )}
+                    <Link href="/my-sprints" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
                   </div>
                   {mySprints.length === 0 ? (
                     <p className="text-gray-400 text-sm">No sprints claimed yet.</p>
@@ -295,18 +292,18 @@ export default function MainPage() {
                 </div>
                 
                 {chartData.length > 0 ? (
-                  <div className="h-64 sm:h-80 w-full">
+                  <div className="w-full" style={{ minHeight: '300px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData}>
                         <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} stroke="#9ca3af" />
-                        <YAxis domain={['dataMin', 'dataMax']} fontSize={12} tickLine={false} axisLine={false} width={40} stroke="#9ca3af" />
+                        <YAxis fontSize={12} tickLine={false} axisLine={false} width={40} stroke="#9ca3af" />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}s`, 'Time']} />
                         <Line type="monotone" dataKey="time" stroke="#000" strokeWidth={3} dot={{ r: 4, fill: '#000' }} activeDot={{ r: 6 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-64 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <div className="flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl" style={{ minHeight: '300px' }}>
                     <span className="text-2xl mb-2">🏃</span>
                     <p className="text-sm">Log some sprints to see your progress!</p>
                   </div>
@@ -321,7 +318,7 @@ export default function MainPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {/* Recent Global Sprints */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
               <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="font-bold">Live Feed</h3>
                 <Link href="/recent-sprints" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
@@ -362,13 +359,19 @@ export default function MainPage() {
 
             {/* The Leaderboard */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
-              <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-2 justify-center">
+              <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                <h3 className="font-bold">Leaderboard</h3>
+                <Link href="/leaderboard" className="text-sm text-blue-600 font-medium hover:underline">View All &rarr;</Link>
+              </div>
+              
+              <div className="p-3 bg-white border-b border-gray-100 flex flex-wrap gap-2 justify-center">
                 {['today', 'week', 'month', 'year', 'all-time'].map(f => (
                   <button key={f} onClick={() => setBoardFilter(f)} className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-colors ${boardFilter === f ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
                     {f.replace('-', ' ')}
                   </button>
                 ))}
               </div>
+
               <table className="w-full text-left">
                 <tbody>
                   {leaderboard.length === 0 ? (
