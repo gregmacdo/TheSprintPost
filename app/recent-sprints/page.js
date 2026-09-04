@@ -11,6 +11,9 @@ export default function RecentSprintsPage() {
   const [user, setUser] = useState(null);
   const [recentSprints, setRecentSprints] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filter State
+  const [timeFilter, setTimeFilter] = useState('all-time');
 
   // Claiming State
   const [claimingId, setClaimingId] = useState(null);
@@ -19,23 +22,45 @@ export default function RecentSprintsPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      
       // 1. Get user
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
 
-      // 2. Fetch the 100 most recent sprints globally
-      const { data } = await supabase
+      // 2. Fetch the 100 most recent sprints globally, applying the time filter
+      let query = supabase
         .from('sprints')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
+      if (timeFilter !== 'all-time') {
+        const pastDate = new Date();
+        if (timeFilter === 'today') pastDate.setHours(pastDate.getHours() - 24);
+        if (timeFilter === 'week') pastDate.setDate(pastDate.getDate() - 7);
+        if (timeFilter === 'month') pastDate.setDate(pastDate.getDate() - 30);
+        if (timeFilter === 'year') pastDate.setDate(pastDate.getDate() - 365);
+        query = query.gte('created_at', pastDate.toISOString());
+      }
+
+      const { data } = await query;
       setRecentSprints(data || []);
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [timeFilter]);
+
+  // Standardizes Date/Time with NO leading zeroes on hours
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric', 
+      minute: '2-digit'
+    });
+  };
 
   const handleClaimClick = (sprintId) => {
     if (!user) {
@@ -78,8 +103,6 @@ export default function RecentSprintsPage() {
     return <span className="text-black font-bold">{sprint.display_name}</span>;
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
-
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -101,10 +124,27 @@ export default function RecentSprintsPage() {
             </div>
           </div>
 
+          {/* Filters */}
+          <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-2 justify-center">
+            {['today', 'week', 'month', 'year', 'all-time'].map(f => (
+              <button 
+                key={f} 
+                onClick={() => setTimeFilter(f)} 
+                className={`px-6 py-2 rounded-full text-sm font-bold capitalize transition-colors shadow-sm ${
+                  timeFilter === f ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                {f.replace('-', ' ')}
+              </button>
+            ))}
+          </div>
+
           {/* Sprints List */}
           <div className="divide-y divide-gray-50">
-            {recentSprints.length === 0 ? (
-              <div className="p-12 text-center text-gray-400">No sprints recorded yet.</div>
+            {loading ? (
+              <div className="p-12 text-center text-gray-400">Loading timeline...</div>
+            ) : recentSprints.length === 0 ? (
+              <div className="p-12 text-center text-gray-400">No sprints recorded in this timeframe.</div>
             ) : (
               recentSprints.map(sprint => (
                 <div key={sprint.id} className="p-6 hover:bg-gray-50 transition-colors">
@@ -115,7 +155,7 @@ export default function RecentSprintsPage() {
                         {renderAthleteName(sprint)}
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        {new Date(sprint.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {new Date(sprint.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {formatDateTime(sprint.created_at)}
                       </div>
                     </div>
                     <div className="font-mono text-3xl font-black tracking-tighter text-black border-t sm:border-0 border-gray-100 pt-4 sm:pt-0 w-full sm:w-auto text-left sm:text-right">
