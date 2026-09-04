@@ -171,62 +171,62 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY - Strict Flex Column Layout */}
+      {/* THE CROPPER OVERLAY - HARD ABSOLUTE COORDINATES */}
       {isCropping && (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col touch-none">
-          
-          {/* Top Block: Header (Shrinks to fit content) */}
-          <div className="shrink-0 pt-12 pb-4 px-4 bg-black text-white text-center">
-            <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-            <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
-          </div>
-          
-          {/* Middle Block: Cropper (Flexes to fill ALL remaining space) */}
-          <div className="flex-1 relative w-full bg-gray-900 overflow-hidden">
-            <Cropper
-              image={imageSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              cropShape="round"
-              showGrid={false}
-              onCropChange={setCrop}
-              onCropComplete={onCropComplete}
-              onZoomChange={setZoom}
-            />
-          </div>
-          
-          {/* Bottom Block: Controls (Shrinks to fit content, anchored to bottom) */}
-          <div className="shrink-0 bg-white rounded-t-3xl p-6 pb-12 space-y-6">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-bold text-gray-500">Zoom</span>
-              <input
-                type="range"
-                value={zoom}
-                min={1}
-                max={3}
-                step={0.1}
-                aria-labelledby="Zoom"
-                onChange={(e) => setZoom(e.target.value)}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+        <div className="fixed inset-0 z-[9999] bg-black/95 sm:p-8 touch-none">
+          <div className="relative w-full h-full max-w-2xl mx-auto bg-gray-900 sm:rounded-3xl overflow-hidden shadow-2xl">
+            
+            {/* CROPPER AREA: Lives exclusively from the top down to 180px above the bottom */}
+            <div className="absolute top-0 left-0 right-0 bottom-[180px]">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
               />
             </div>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleUploadCrop} 
-                className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
-              >
-                Save Crop
-              </button>
+            
+            {/* CONTROLS AREA: Lives exclusively in the bottom 180px */}
+            <div className="absolute bottom-0 left-0 right-0 h-[180px] bg-white rounded-t-3xl sm:rounded-b-3xl sm:rounded-t-none p-6 flex flex-col justify-center space-y-6 shadow-[0_-10px_20px_rgba(0,0,0,0.2)]">
+              
+              {/* Zoom Slider */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-bold text-gray-500">Zoom</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(e.target.value)}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+                />
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
+                  className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleUploadCrop} 
+                  className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
+                >
+                  Save Crop
+                </button>
+              </div>
             </div>
-          </div>
 
+          </div>
         </div>
       )}
 
