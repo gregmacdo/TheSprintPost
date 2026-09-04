@@ -75,13 +75,12 @@ export default function MainPage() {
     return (
       <div className="flex items-center gap-2">
         {sprint.athlete_avatar && (
-          <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-gray-200 bg-white flex-shrink-0">
-            <img 
-              src={sprint.athlete_avatar} 
-              alt="Avatar" 
-              className="w-full h-full object-cover" 
-            />
-          </div>
+          {/* BYPASSING TAILWIND WITH INLINE STYLES FOR THE SPRINT LIST (24px) */}
+          <img 
+            src={sprint.athlete_avatar} 
+            alt="Avatar" 
+            style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #e5e7eb' }} 
+          />
         )}
         <span className="text-black font-bold flex items-center gap-1">
           {sprint.display_name}
