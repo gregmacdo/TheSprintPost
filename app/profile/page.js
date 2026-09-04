@@ -171,19 +171,19 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY (MOBILE OPTIMIZED & OVERFLOW FIXED) */}
+      {/* THE CROPPER MODAL OVERLAY */}
       {isCropping && (
-        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center sm:p-4 backdrop-blur-sm touch-none">
-          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:max-w-xl overflow-hidden shadow-2xl flex flex-col">
+        <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center sm:p-4 touch-none">
+          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:max-w-xl flex flex-col overflow-hidden shadow-2xl">
             
-            {/* Header */}
-            <div className="relative z-10 p-4 sm:p-6 bg-gray-900 text-white text-center shrink-0">
+            {/* Header - Forced to top layer */}
+            <div className="relative z-50 p-4 sm:p-6 bg-gray-900 text-white text-center shrink-0">
               <h3 className="font-bold text-lg">Crop Your Avatar</h3>
               <p className="text-sm text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
             </div>
             
-            {/* Cropper Container - Added overflow-hidden and bg-black */}
-            <div className="relative w-full flex-grow sm:h-96 min-h-[400px] bg-black overflow-hidden">
+            {/* Cropper Container - flex-1 and min-h-0 prevents it from pushing buttons off screen */}
+            <div className="relative w-full flex-1 min-h-0 bg-black overflow-hidden z-0">
               <Cropper
                 image={imageSrc}
                 crop={crop}
@@ -194,11 +194,12 @@ export default function ProfilePage() {
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
+                style={{ containerStyle: { width: '100%', height: '100%' } }}
               />
             </div>
             
-            {/* Controls - Added relative z-10 and drop shadow to ensure it stays on top */}
-            <div className="relative z-10 p-4 sm:p-6 space-y-4 sm:space-y-6 shrink-0 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            {/* Controls - Elevated z-50 prevents the cropper touch layer from blocking taps */}
+            <div className="relative z-50 p-4 sm:p-6 space-y-4 sm:space-y-6 shrink-0 bg-white border-t border-gray-100 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)]">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-bold text-gray-500">Zoom</span>
                 <input
@@ -241,7 +242,6 @@ export default function ProfilePage() {
 
             <form onSubmit={handleSaveProfile} className="space-y-8">
               
-              {/* Avatar Section */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-gray-100 text-center sm:text-left">
                 <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                   {avatarUrl ? (
@@ -262,7 +262,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Demographics Section */}
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-bold mb-2">Display Name</label>
