@@ -171,19 +171,22 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900 relative">
       
-      {/* THE CROPPER MODAL OVERLAY - Hardcoded fixes for iOS/Android bleed */}
+      {/* THE CROPPER MODAL OVERLAY */}
       {isCropping && (
-        <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col items-center justify-center p-4 touch-none">
-          <div className="bg-white w-full max-w-xl rounded-3xl flex flex-col overflow-hidden shadow-2xl relative z-[10000]">
+        <div className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 touch-none">
+          <div className="bg-white w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col">
             
             {/* Header */}
-            <div className="p-4 sm:p-5 bg-gray-900 text-white text-center shrink-0">
+            <div className="p-4 bg-gray-900 text-white text-center border-b border-gray-800">
               <h3 className="font-bold text-lg">Crop Your Avatar</h3>
-              <p className="text-sm text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
+              <p className="text-xs text-gray-400 mt-1">Pinch to zoom, drag to move.</p>
             </div>
             
-            {/* Cropper Container - Strict Height and Hard Confinement */}
-            <div className="relative w-full h-[45vh] sm:h-[400px] bg-black overflow-hidden shrink-0">
+            {/* Cropper Container 
+                CRITICAL FIX: A strict relative block with a fixed height. 
+                No absolute positioning hacks allowed here.
+            */}
+            <div className="relative w-full h-[350px] sm:h-[400px] bg-black">
               <Cropper
                 image={imageSrc}
                 crop={crop}
@@ -194,19 +197,12 @@ export default function ProfilePage() {
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
-                style={{ 
-                  containerStyle: { 
-                    position: 'absolute', 
-                    top: 0, left: 0, right: 0, bottom: 0, 
-                    overflow: 'hidden' 
-                  } 
-                }}
               />
             </div>
             
-            {/* Controls - High z-index and explicit positions */}
-            <div className="p-5 sm:p-6 space-y-5 shrink-0 bg-white relative z-[10001]">
-              <div className="flex items-center gap-4 relative z-[10002]">
+            {/* Controls Box - Physically separated from the cropper above it */}
+            <div className="p-5 bg-white space-y-5">
+              <div className="flex items-center gap-4">
                 <span className="text-sm font-bold text-gray-500">Zoom</span>
                 <input
                   type="range"
@@ -216,19 +212,19 @@ export default function ProfilePage() {
                   step={0.1}
                   aria-labelledby="Zoom"
                   onChange={(e) => setZoom(e.target.value)}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black relative z-[10003]"
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
                 />
               </div>
-              <div className="flex gap-4 relative z-[10002]">
+              <div className="flex gap-3">
                 <button 
                   onClick={() => { setIsCropping(false); setImageSrc(null); setZoom(1); }} 
-                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm sm:text-base relative z-[10003]"
+                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleUploadCrop} 
-                  className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm sm:text-base relative z-[10003]"
+                  className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm"
                 >
                   Save Crop
                 </button>
