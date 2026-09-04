@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthHeader from '../components/AuthHeader';
+import AthleteBadge from '../components/AthleteBadge';
 import dynamic from 'next/dynamic';
 
 const ProgressionChart = dynamic(() => import('../components/ProgressionChart'), { ssr: false });
@@ -66,28 +67,6 @@ export default function MainPage() {
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  };
-
-  const renderAthleteName = (sprint) => {
-    if (!sprint.is_claimed) return <span className="text-gray-500 italic">Unclaimed Sprint</span>;
-    if (sprint.is_anonymous) return <span className="text-gray-700 font-medium">Anonymous Athlete</span>;
-    
-    return (
-      <div className="flex items-center gap-2">
-        {sprint.athlete_avatar && (
-          <img 
-            src={sprint.athlete_avatar} 
-            alt="Avatar" 
-            style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #e5e7eb' }} 
-          />
-        )}
-        <span className="text-black font-bold flex items-center gap-1">
-          {sprint.display_name}
-          {sprint.athlete_over_40 && <span title="Masters (40+)" className="text-xs">🌟</span>}
-          {sprint.athlete_clydesdale && <span title="Clydesdale/Athena" className="text-xs">🐴</span>}
-        </span>
-      </div>
-    );
   };
 
   const processClaim = async (sprintId, phraseToTest, isAnon) => {
@@ -306,7 +285,7 @@ export default function MainPage() {
                   <div key={sprint.id} className="p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex justify-between items-center mb-1">
                       <div>
-                        {renderAthleteName(sprint)}
+                        <AthleteBadge sprint={sprint} />
                         <div className="text-xs text-gray-400 mt-0.5">{formatDateTime(sprint.created_at)}</div>
                       </div>
                       <div className="font-mono text-xl font-bold">{sprint.time_seconds.toFixed(2)}s</div>
@@ -358,7 +337,7 @@ export default function MainPage() {
                       <tr key={sprint.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="p-4 text-center font-bold text-gray-400 w-12">{index + 1}</td>
                         <td className="p-4">
-                          {renderAthleteName(sprint)}
+                          <AthleteBadge sprint={sprint} />
                           <div className="text-xs text-gray-400 mt-1">{formatDateTime(sprint.created_at)}</div>
                         </td>
                         <td className="p-4 text-right font-mono text-lg font-bold">{sprint.time_seconds.toFixed(2)}s</td>
