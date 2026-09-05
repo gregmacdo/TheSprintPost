@@ -26,20 +26,32 @@ export default function LoginPage() {
   const handleGoogleCallback = async (response) => {
     setLoading(true);
     setError(null);
-
+  
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: response.credential,
     });
-
+  
     if (error) {
       setError(error.message);
       setLoading(false);
-    } else {
-      router.push('/');
-      router.refresh();
+      return;
     }
+  
+    // Check if user has already completed their profile setup
+    const user = data.user;
+    const hasCompletedProfile = user?.user_metadata?.display_name && user?.user_metadata?.gender;
+  
+    if (hasCompletedProfile) {
+      router.push('/');
+    } else {
+      // Missing demographics -> send to onboarding
+      router.push('/onboarding');
+    }
+    router.refresh();
   };
+
+
 
   // Initialize Google SDK once script loads
   const handleScriptLoad = () => {
