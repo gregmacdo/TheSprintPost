@@ -8,52 +8,44 @@ import Script from 'next/script';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
 
-  // Standard Auth Fields
+  // Form Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-
-  // Demographics (Only used for Sign Up)
-  const [gender, setGender] = useState('Prefer not to say');
-  const [isOver40, setIsOver40] = useState(false);
-  const [isClydesdale, setIsClydesdale] = useState(false);
+  const [usePassword, setUsePassword] = useState(false);
 
   // Handle Google Token Response
   const handleGoogleCallback = async (response) => {
     setLoading(true);
     setError(null);
-  
+    setMessage(null);
+
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: response.credential,
     });
-  
+
     if (error) {
       setError(error.message);
       setLoading(false);
       return;
     }
-  
-    // Check if user has already completed their profile setup
+
     const user = data.user;
     const hasCompletedProfile = user?.user_metadata?.display_name && user?.user_metadata?.gender;
-  
+
     if (hasCompletedProfile) {
       router.push('/');
     } else {
-      // Missing demographics -> send to onboarding
       router.push('/onboarding');
     }
     router.refresh();
   };
 
-
-
-  // Initialize Google SDK once script loads
+  // Initialize Google SDK
   const handleScriptLoad = () => {
     if (window.google) {
       window.google.accounts.id.initialize({
@@ -61,54 +53,58 @@ export default function LoginPage() {
         callback: handleGoogleCallback,
       });
 
-      // Render official Google button inside #googleSignInDiv
       const btnContainer = document.getElementById('googleSignInDiv');
       if (btnContainer) {
         window.google.accounts.id.renderButton(btnContainer, {
           theme: 'outline',
           size: 'large',
-          width: '384', // Matches max-w-md container width
+          width: '384',
           shape: 'pill',
         });
       }
     }
   };
 
+  // Handle Email Auth (Magic Link or Password)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
 
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+    if (usePassword) {
+      // Password Login Flow
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          data: {
-            display_name: displayName,
-            gender: gender,
-            is_over_40: isOver40,
-            is_clydesdale: isClydesdale,
-            avatar_url: null
-          }
-        }
       });
 
       if (error) {
         setError(error.message);
       } else {
-        router.push('/');
+        const user = data.user;
+        const hasCompletedProfile = user?.user_metadata?.display_name && user?.user_metadata?.gender;
+
+        if (hasCompletedProfile) {
+          router.push('/');
+        } else {
+          router.push('/onboarding');
+        }
+        router.refresh();
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Magic Link Flow
+      const { error } = await supabase.auth.signInWithOtp({
         email,
-        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (error) {
         setError(error.message);
       } else {
-        router.push('/');
+        setMessage('⚡ Magic link sent! Check your inbox to sign in.');
       }
     }
     setLoading(false);
@@ -129,12 +125,18 @@ export default function LoginPage() {
           <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
             <h1 className="text-3xl font-extrabold tracking-tight text-black mb-2">⚡ The Sprint Post</h1>
           </Link>
-          <p className="text-gray-500">{isSignUp ? 'Create your athlete profile.' : 'Welcome back, runner.'}</p>
+          <p className="text-gray-500">Sign in to track and claim your times.</p>
         </div>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">
             {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-medium border border-emerald-100 text-center">
+            {message}
           </div>
         )}
 
@@ -150,100 +152,55 @@ export default function LoginPage() {
           <div className="flex-grow border-t border-gray-200"></div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold mb-2 text-black">Email</label>
+            <label className="block text-sm font-bold mb-2 text-black">Email Address</label>
             <input 
               type="email" 
               required 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black bg-gray-50 focus:bg-white transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold mb-2 text-black">Password</label>
-            <input 
-              type="password" 
-              required 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              placeholder="runner@example.com"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black bg-gray-50 focus:bg-white transition-colors"
             />
           </div>
 
-          {isSignUp && (
-            <div className="space-y-5 pt-4 border-t border-gray-100 mt-2">
-              <div>
-                <label className="block text-sm font-bold mb-2 text-black">Display Name</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black bg-gray-50 focus:bg-white transition-colors"
-                  placeholder="e.g. Usain Bolt"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold mb-2 text-black">Gender Category</label>
-                <select 
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black bg-gray-50 focus:bg-white transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={isOver40}
-                    onChange={(e) => setIsOver40(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black"
-                  />
-                  <span className="text-sm font-bold">Masters (40+ years old)</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={isClydesdale}
-                    onChange={(e) => setIsClydesdale(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black"
-                  />
-                  <div>
-                    <span className="text-sm font-bold block">Clydesdale / Athena</span>
-                    <span className="text-xs text-gray-500">Male 200+ lbs / Female 165+ lbs</span>
-                  </div>
-                </label>
-              </div>
+          {usePassword && (
+            <div>
+              <label className="block text-sm font-bold mb-2 text-black">Password</label>
+              <input 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black bg-gray-50 focus:bg-white transition-colors"
+              />
             </div>
           )}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 mt-4 shadow-sm"
+            className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 mt-2 shadow-sm"
           >
-            {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
+            {loading 
+              ? 'Processing...' 
+              : usePassword 
+                ? 'Sign In with Password' 
+                : 'Send Magic Link ✉️'}
           </button>
         </form>
 
         <div className="mt-8 text-center border-t border-gray-100 pt-6">
           <button 
             onClick={() => {
-              setIsSignUp(!isSignUp);
+              setUsePassword(!usePassword);
               setError(null);
+              setMessage(null);
             }}
             className="text-sm text-gray-500 hover:text-black font-medium transition-colors"
           >
-            {isSignUp ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+            {usePassword ? '← Back to Magic Link login' : 'Sign in with Password instead'}
           </button>
         </div>
 
