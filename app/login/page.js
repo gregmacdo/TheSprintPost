@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [usePassword, setUsePassword] = useState(false);
 
   // Handle Google Token Response
-  const handleGoogleCallback = async (response) => {
+  const handleGoogleCallback = useCallback(async (response) => {
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -43,11 +43,11 @@ export default function LoginPage() {
       router.push('/onboarding');
     }
     router.refresh();
-  };
+  }, [router]);
 
-  // Initialize Google SDK
-  const handleScriptLoad = () => {
-    if (window.google) {
+  // Helper to render Google button safely
+  const initializeGoogleButton = useCallback(() => {
+    if (typeof window !== 'undefined' && window.google) {
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
         callback: handleGoogleCallback,
@@ -55,6 +55,7 @@ export default function LoginPage() {
 
       const btnContainer = document.getElementById('googleSignInDiv');
       if (btnContainer) {
+        btnContainer.innerHTML = ''; // Clear existing node to prevent DOM state mismatches
         window.google.accounts.id.renderButton(btnContainer, {
           theme: 'outline',
           size: 'large',
@@ -63,7 +64,14 @@ export default function LoginPage() {
         });
       }
     }
-  };
+  }, [handleGoogleCallback]);
+
+  // Re-run on client-side soft navigation when script is already cached in window
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.google) {
+      initializeGoogleButton();
+    }
+  }, [initializeGoogleButton]);
 
   // Handle Email Auth (Magic Link or Password)
   const handleSubmit = async (e) => {
@@ -73,7 +81,6 @@ export default function LoginPage() {
     setMessage(null);
 
     if (usePassword) {
-      // Password Login Flow
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -93,7 +100,6 @@ export default function LoginPage() {
         router.refresh();
       }
     } else {
-      // Magic Link Flow
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -115,7 +121,7 @@ export default function LoginPage() {
       {/* Google Identity Services SDK */}
       <Script 
         src="https://accounts.google.com/gsi/client" 
-        onLoad={handleScriptLoad} 
+        onLoad={initializeGoogleButton} 
         strategy="afterInteractive" 
       />
 
